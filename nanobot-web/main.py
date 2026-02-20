@@ -15,16 +15,16 @@ from fastapi.responses import JSONResponse, StreamingResponse
 import json
 import uuid
 from datetime import datetime
-import asyncio
 from loguru import logger
 
 # Import nanobot components
 from nanobot.bus.queue import MessageBus
-from nanobot.bus.events import InboundMessage, OutboundMessage
 from nanobot.agent.loop import AgentLoop
 from nanobot.session.manager import SessionManager
 from nanobot.config.loader import load_config
 from nanobot.providers.litellm_provider import LiteLLMProvider
+from nanobot.providers.openai_codex_provider import OpenAICodexProvider
+from nanobot.providers.custom_provider import CustomProvider
 
 app = FastAPI(
     title="Nanobot Web API",
@@ -45,43 +45,11 @@ app.add_middleware(
 NANOBOT_AVAILABLE = False
 agent_loop = None
 message_bus = None
-web_channel = None
-
-# Response callbacks for web channel
-pending_responses: dict[str, asyncio.Future] = {}
-
-
-class WebChannel:
-    """Simple web channel that bridges web API to nanobot message bus."""
-    
-    name = "web"
-    
-    def __init__(self, bus: MessageBus):
-        self.bus = bus
-        self._running = False
-        # Register outbound message handler
-        self.bus.subscribe_outbound(self.name, self._handle_outbound)
-    
-    async def _handle_outbound(self, msg: OutboundMessage) -> None:
-        """Handle outbound messages from the agent."""
-        if msg.channel == self.name:
-            # Find pending request and set response
-            key = msg.chat_id
-            if key in pending_responses:
-                pending_responses[key].set_result(msg.content)
-    
-    async def send(self, msg: OutboundMessage) -> None:
-        """Send message (not used for web channel)."""
-        pass
-    
-    @property
-    def is_running(self) -> bool:
-        return self._running
 
 
 async def init_nanobot():
     """Initialize nanobot components."""
-    global NANOBOT_AVAILABLE, agent_loop, message_bus, web_channel
+    global NANOBOT_AVAILABLE, agent_loop, message_bus
     
     try:
         logger.info("Initializing nanobot...")
@@ -91,9 +59,6 @@ async def init_nanobot():
         
         # Create message bus
         message_bus = MessageBus()
-        
-        # Create web channel
-        web_channel = WebChannel(message_bus)
         
         # Create session manager
         session_manager = SessionManager(config.workspace_path)
@@ -122,12 +87,21 @@ async def init_nanobot():
         if not api_key:
             api_key = os.environ.get("ANTHROPIC_API_KEY", "")
         
-        provider = LiteLLMProvider(
-            api_key=api_key,
-            api_base=api_base,
-            default_model=model,
-            provider_name=provider_name
-        )
+        if provider_name == "openai_codex" or model.startswith("openai-codex/"):
+            provider = OpenAICodexProvider(default_model=model)
+        elif provider_name == "custom":
+            provider = CustomProvider(
+                api_key=api_key or "no-key",
+                api_base=api_base or "http://localhost:8000/v1",
+                default_model=model,
+            )
+        else:
+            provider = LiteLLMProvider(
+                api_key=api_key or None,
+                api_base=api_base,
+                default_model=model,
+                provider_name=provider_name
+            )
         
         # Create agent loop
         agent_loop = AgentLoop(
@@ -141,10 +115,7 @@ async def init_nanobot():
             memory_window=config.agents.defaults.memory_window,
         )
         
-        # Start the message bus dispatcher and agent loop as background tasks
-        import asyncio
-        asyncio.create_task(message_bus.dispatch_outbound())
-        asyncio.create_task(agent_loop.run())
+        # process_direct() handles web requests directly, no bus dispatcher required
         
         NANOBOT_AVAILABLE = True
         logger.info("Nanobot initialized successfully!")
@@ -284,42 +255,17 @@ def add_message(session_id: str, content: str, role: str = "user") -> dict:
 
 async def generate_ai_response(content: str, session_id: str = "web:default") -> str:
     """Generate AI response using nanobot agent."""
-    global pending_responses
-    
     if not NANOBOT_AVAILABLE or agent_loop is None:
         return f"This is a placeholder response for: {content}"
     
     try:
-        # Create a unique key for this request
-        message_id = str(uuid.uuid4())
-        key = session_id
-        
-        # Create a future to wait for response
-        loop = asyncio.get_event_loop()
-        future = loop.create_future()
-        pending_responses[key] = future
-        
-        # Create inbound message
-        msg = InboundMessage(
-            channel="web",
-            sender_id="web_user",
-            chat_id=session_id,
+        response = await agent_loop.process_direct(
             content=content,
-            media=[],
-            metadata={"message_id": message_id}
+            session_key=session_id,
+            channel="web",
+            chat_id=session_id,
         )
-        
-        # Publish to message bus
-        await message_bus.publish_inbound(msg)
-        
-        # Wait for response with timeout
-        try:
-            response = await asyncio.wait_for(future, timeout=120)
-            return response
-        except asyncio.TimeoutError:
-            return "Response timeout"
-        finally:
-            pending_responses.pop(key, None)
+        return response
             
     except Exception as e:
         logger.error(f"Error generating AI response: {e}")

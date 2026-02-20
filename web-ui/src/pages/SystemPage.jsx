@@ -31,12 +31,24 @@ const SystemPage = () => {
     return () => clearInterval(interval)
   }, [])
 
+  const localizedStatus = status?.status === 'healthy'
+    ? t('system.healthy')
+    : status?.status === 'error'
+      ? t('system.error')
+      : status?.status
+
+  const localizedMode = status?.mode === 'limited - basic API endpoints available'
+    ? t('system.modeLimited')
+    : status?.mode === 'offline'
+      ? t('system.offline')
+      : status?.mode
+
   return (
     <div className="system-page">
       <h2>{t('system.status')}</h2>
 
       {loading ? (
-        <div className="loading-message">Loading system status...</div>
+        <div className="loading-message">{t('system.loadingStatus')}</div>
       ) : error ? (
         <div className="error-message">{error}</div>
       ) : status ? (
@@ -46,25 +58,29 @@ const SystemPage = () => {
             <h3>{t('system.health')}</h3>
             <div className="grid-container">
               <div className="status-card">
-                <p className="status-label">Status</p>
-                <p className="status-value">{status.status}</p>
+                <p className="status-label">{t('system.status')}</p>
+                <p className="status-value">{localizedStatus}</p>
               </div>
               <div className="status-card">
-                <p className="status-label">Mode</p>
-                <p className="status-value">{status.mode}</p>
+                <p className="status-label">{t('system.mode')}</p>
+                <p className="status-value">{localizedMode}</p>
               </div>
             </div>
           </div>
 
           {/* Services */}
           <div className="card">
-            <h3>Services</h3>
+            <h3>{t('system.services')}</h3>
             <div className="grid-container">
               {Object.entries(status.services).map(([service, serviceStatus]) => (
                 <div key={service} className="status-card">
                   <p className="status-label">{service}</p>
                   <p className={`status-value ${serviceStatus === 'available' ? 'service-available' : 'service-unavailable'}`}>
-                    {serviceStatus}
+                    {serviceStatus === 'available'
+                      ? t('system.available')
+                      : serviceStatus === 'unavailable'
+                        ? t('system.unavailable')
+                        : serviceStatus}
                   </p>
                 </div>
               ))}
@@ -72,7 +88,7 @@ const SystemPage = () => {
           </div>
         </div>
       ) : (
-        <div className="empty-message">No system status available</div>
+        <div className="empty-message">{t('system.noStatus')}</div>
       )}
     </div>
   )

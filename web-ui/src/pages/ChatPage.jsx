@@ -292,7 +292,7 @@ const ChatPage = () => {
                         />
                         <div className="message-header">
                           <Text strong style={{ color: message.role === 'user' ? '#1890ff' : '#52c41a' }}>
-                            {message.role === 'user' ? t('chat.you') : 'Nanobot'}
+                            {message.role === 'user' ? t('chat.you') : t('chat.assistantName')}
                           </Text>
                           {message.createdAt && (
                             <span className="message-time">{formatMessageTime(message.createdAt)}</span>
@@ -317,7 +317,7 @@ const ChatPage = () => {
                       <div className="message-avatar-row">
                         <Avatar icon={<RobotOutlined />} className="message-avatar assistant" />
                         <div className="message-header">
-                          <Text strong style={{ color: '#52c41a' }}>Nanobot</Text>
+                          <Text strong style={{ color: '#52c41a' }}>{t('chat.assistantName')}</Text>
                         </div>
                       </div>
                       <div className="message-content">

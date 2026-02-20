@@ -11,7 +11,6 @@ const ConfigPage = () => {
     saving, 
     error,
     loadConfig, 
-    updateConfig,
     saveConfig
   } = useConfigStore()
   const [activeTab, setActiveTab] = useState('agents')
@@ -61,7 +60,7 @@ const ConfigPage = () => {
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch (error) {
-      console.error('Error saving config:', error)
+      console.error(t('configPage.saveErrorLog'), error)
     }
   }
 
@@ -71,9 +70,9 @@ const ConfigPage = () => {
     
     return (
       <div className="form-section">
-        <h3>Agent Settings</h3>
+        <h3>{t('configPage.agentSettings')}</h3>
         <div className="form-group">
-          <label>Workspace</label>
+          <label>{t('configPage.workspace')}</label>
           <input
             type="text"
             value={agents.workspace || ''}
@@ -82,7 +81,7 @@ const ConfigPage = () => {
           />
         </div>
         <div className="form-group">
-          <label>Model</label>
+          <label>{t('configPage.model')}</label>
           <input
             type="text"
             value={agents.model || ''}
@@ -91,7 +90,7 @@ const ConfigPage = () => {
           />
         </div>
         <div className="form-group">
-          <label>Max Tokens</label>
+          <label>{t('configPage.maxTokens')}</label>
           <input
             type="number"
             value={agents.max_tokens || 8192}
@@ -100,7 +99,7 @@ const ConfigPage = () => {
           />
         </div>
         <div className="form-group">
-          <label>Temperature</label>
+          <label>{t('configPage.temperature')}</label>
           <input
             type="number"
             step="0.1"
@@ -112,7 +111,7 @@ const ConfigPage = () => {
           />
         </div>
         <div className="form-group">
-          <label>Max Tool Iterations</label>
+          <label>{t('configPage.maxToolIterations')}</label>
           <input
             type="number"
             value={agents.max_tool_iterations || 20}
@@ -121,7 +120,7 @@ const ConfigPage = () => {
           />
         </div>
         <div className="form-group">
-          <label>Memory Window</label>
+          <label>{t('configPage.memoryWindow')}</label>
           <input
             type="number"
             value={agents.memory_window || 50}
@@ -146,7 +145,7 @@ const ConfigPage = () => {
               checked={value || false}
               onChange={(e) => handleNestedChange('channels', channelName, key, e.target.checked)}
             />
-            <label>Enable {channelName}</label>
+            <label>{t('configPage.enableChannel', { channel: channelName })}</label>
           </div>
         )
       } else if (typeof value === 'boolean') {
@@ -175,7 +174,7 @@ const ConfigPage = () => {
       } else if (Array.isArray(value)) {
         fields.push(
           <div key={key} className="form-group">
-            <label>{key} (comma separated)</label>
+            <label>{t('configPage.commaSeparated', { key })}</label>
             <input
               type="text"
               value={value.join(', ') || ''}
@@ -210,7 +209,7 @@ const ConfigPage = () => {
     
     return (
       <div className="form-section">
-        <h3>Channel Settings</h3>
+        <h3>{t('configPage.channelSettings')}</h3>
         {channelNames.map(channelName => (
           <div key={channelName} className="channel-section">
             <h4>{channelName}</h4>
@@ -284,7 +283,7 @@ const ConfigPage = () => {
     
     return (
       <div className="form-section">
-        <h3>Provider Settings</h3>
+        <h3>{t('configPage.providerSettings')}</h3>
         {providerNames.map(providerName => (
           <div key={providerName} className="provider-section">
             <h4 className="provider-name">{providerName}</h4>
@@ -302,10 +301,10 @@ const ConfigPage = () => {
     
     return (
       <div className="form-section">
-        <h3>Tools Settings</h3>
+        <h3>{t('configPage.toolsSettings')}</h3>
         
         <div className="form-group">
-          <label>Restrict to Workspace</label>
+          <label>{t('configPage.restrictToWorkspace')}</label>
           <input
             type="checkbox"
             checked={tools.restrict_to_workspace || false}
@@ -315,9 +314,9 @@ const ConfigPage = () => {
         
         {tools.web?.search && (
           <div className="nested-section">
-            <h4>Web Search</h4>
+            <h4>{t('configPage.webSearch')}</h4>
             <div className="form-group">
-              <label>API Key</label>
+              <label>{t('configPage.apiKey')}</label>
               <input
                 type="text"
                 value={tools.web.search.api_key || ''}
@@ -338,7 +337,7 @@ const ConfigPage = () => {
               />
             </div>
             <div className="form-group">
-              <label>Max Results</label>
+              <label>{t('configPage.maxResults')}</label>
               <input
                 type="number"
                 value={tools.web.search.max_results || 5}
@@ -363,9 +362,9 @@ const ConfigPage = () => {
         
         {tools.exec && (
           <div className="nested-section">
-            <h4>Exec</h4>
+            <h4>{t('configPage.exec')}</h4>
             <div className="form-group">
-              <label>Timeout (seconds)</label>
+              <label>{t('configPage.timeoutSeconds')}</label>
               <input
                 type="number"
                 value={tools.exec.timeout || 60}
@@ -387,12 +386,12 @@ const ConfigPage = () => {
         
         {(mcpServers || true) && (
           <div className="nested-section">
-            <h4>MCP Servers</h4>
+            <h4>{t('configPage.mcpServers')}</h4>
             {Object.keys(mcpServers).map(serverName => (
               <div key={serverName} className="mcp-server-section">
                 <h5>{serverName}</h5>
                 <div className="form-group">
-                  <label>Command</label>
+                  <label>{t('configPage.command')}</label>
                   <input
                     type="text"
                     value={mcpServers[serverName]?.command || ''}
@@ -413,7 +412,7 @@ const ConfigPage = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Args (comma separated)</label>
+                  <label>{t('configPage.argsCommaSeparated')}</label>
                   <input
                     type="text"
                     value={(mcpServers[serverName]?.args || []).join(', ')}
@@ -434,7 +433,7 @@ const ConfigPage = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Env (JSON)</label>
+                  <label>{t('configPage.envJson')}</label>
                   <input
                     type="text"
                     value={JSON.stringify(mcpServers[serverName]?.env || {})}
@@ -464,7 +463,7 @@ const ConfigPage = () => {
             <button
               type="button"
               onClick={() => {
-                const name = prompt('Enter MCP server name:')
+                const name = prompt(t('configPage.enterMcpServerName'))
                 if (name) {
                   setLocalConfig(prev => ({ 
                     ...prev, 
@@ -480,7 +479,7 @@ const ConfigPage = () => {
               }}
               className="add-button"
             >
-              + Add MCP Server
+              {t('configPage.addMcpServer')}
             </button>
           </div>
         )}
@@ -504,7 +503,7 @@ const ConfigPage = () => {
   }
 
   if (!localConfig) {
-    return <div className="loading-message">Loading config...</div>
+    return <div className="loading-message">{t('configPage.loadingConfig')}</div>
   }
 
   return (
@@ -514,37 +513,37 @@ const ConfigPage = () => {
           onClick={() => setActiveTab('agents')}
           className={`tab-button ${activeTab === 'agents' ? 'active' : ''}`}
         >
-          Agents
+          {t('config.agents')}
         </button>
         <button
           onClick={() => setActiveTab('channels')}
           className={`tab-button ${activeTab === 'channels' ? 'active' : ''}`}
         >
-          Channels
+          {t('config.channels')}
         </button>
         <button
           onClick={() => setActiveTab('providers')}
           className={`tab-button ${activeTab === 'providers' ? 'active' : ''}`}
         >
-          Providers
+          {t('config.providers')}
         </button>
         <button
           onClick={() => setActiveTab('tools')}
           className={`tab-button ${activeTab === 'tools' ? 'active' : ''}`}
         >
-          Tools
+          {t('configPage.tools')}
         </button>
       </div>
 
       {loading ? (
-        <div className="loading-message">Loading config...</div>
+        <div className="loading-message">{t('configPage.loadingConfig')}</div>
       ) : error ? (
         <div className="error-message">{error}</div>
       ) : (
         <div>
           {saveSuccess && (
             <div className="success-message">
-              Config saved successfully!
+              {t('config.saveSuccess')}
             </div>
           )}
           {renderTabContent()}
@@ -554,7 +553,7 @@ const ConfigPage = () => {
               disabled={saving}
               className="save-button"
             >
-              {saving ? 'Saving...' : 'Save Config'}
+              {saving ? t('configPage.saving') : t('configPage.saveConfig')}
             </button>
           </div>
         </div>
