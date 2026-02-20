@@ -1,0 +1,39 @@
+{
+  "api": {
+    "networkError": "Network error",
+    "requestFailed": "Request failed"
+  },
+  "chat": {
+    "newSession": "New Session",
+    "renameSession": "Rename Session",
+    "deleteSession": "Delete Session",
+    "confirmDelete": "Are you sure you want to delete this session?",
+    "sendMessage": "Send",
+    "messagePlaceholder": "Type your message here...",
+    "thinking": "Thinking...",
+    "error": "Error: {{message}}"
+  },
+  "config": {
+    "save": "Save",
+    "saveSuccess": "Config saved successfully",
+    "saveError": "Failed to save config",
+    "agents": "Agents",
+    "channels": "Channels",
+    "providers": "Providers",
+    "models": "Models",
+    "mcps": "MCPs",
+    "skills": "Skills"
+  },
+  "layout": {
+    "chat": "Chat",
+    "config": "Config",
+    "system": "System"
+  },
+  "system": {
+    "health": "Health",
+    "status": "Status",
+    "uptime": "Uptime",
+    "workspace": "Workspace",
+    "environment": "Environment"
+  }
+}

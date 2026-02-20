@@ -184,7 +184,7 @@ class AgentLoop:
         iteration = 0
         final_content = None
         tools_used: list[str] = []
-        text_only_retried = False
+        interim_content = None  # Save interim content for potential fallback
 
         while iteration < self.max_iterations:
             iteration += 1
@@ -228,17 +228,25 @@ class AgentLoop:
                     )
             else:
                 final_content = self._strip_think(response.content)
-                # Some models send an interim text response before tool calls.
-                # Give them one retry; don't forward the text to avoid duplicates.
-                if not tools_used and not text_only_retried and final_content:
-                    text_only_retried = True
-                    logger.debug("Interim text response (no tools used yet), retrying: {}", final_content[:80])
+                # Some models (MiniMax, Gemini Flash, GPT-4.1, etc.) send an
+                # interim text response (e.g. "Let me investigate...") before
+                # making tool calls. If no tools have been used yet and we
+                # haven't already retried, forward the text as progress and
+                # give the model one more chance to use tools.
+                if not tools_used and response.content and final_content is None:
+                    # First response with content but no tools - save and retry
+                    interim_content = self._strip_think(response.content)
+                    logger.debug("Interim text response (no tools used yet), retrying: {}", interim_content[:80])
                     messages = self.context.add_assistant_message(
                         messages, response.content,
                         reasoning_content=response.reasoning_content,
                     )
-                    final_content = None
+                    # Continue to retry
                     continue
+                # Otherwise, use the response as-is (could be tools or final content)
+                # If empty after retry, fall back to interim_content if available
+                if not final_content and interim_content:
+                    final_content = interim_content
                 break
 
         return final_content, tools_used

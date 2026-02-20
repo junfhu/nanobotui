@@ -1,0 +1,156 @@
+/* System Page Styles */
+
+.system-page {
+  padding: 24px;
+  height: 100%;
+  overflow-y: auto;
+  background-color: #121212;
+  color: #ffffff;
+}
+
+.system-page h2 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #e0e0e0;
+}
+
+.system-page h3 {
+  font-size: 16px;
+  font-weight: 500;
+  margin-bottom: 12px;
+  color: #e0e0e0;
+}
+
+/* Card Styles */
+.card {
+  background-color: #1f1f1f;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  border: 1px solid #333;
+}
+
+/* Grid Layout */
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+/* Status Cards */
+.status-card {
+  background-color: #2d2d2d;
+  padding: 12px;
+  border-radius: 6px;
+  border: 1px solid #333;
+  transition: all 0.2s ease;
+}
+
+.status-card:hover {
+  border-color: #1890ff;
+  box-shadow: 0 1px 4px rgba(24, 144, 255, 0.2);
+}
+
+.status-card p {
+  margin: 4px 0;
+}
+
+.status-label {
+  font-size: 12px;
+  color: #999;
+}
+
+.status-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #e0e0e0;
+}
+
+/* Service Status */
+.service-available {
+  color: #52c41a;
+}
+
+.service-unavailable {
+  color: #ff4d4f;
+}
+
+/* Status Messages */
+.loading-message {
+  text-align: center;
+  padding: 40px 0;
+  color: #999;
+  font-size: 14px;
+}
+
+.error-message {
+  text-align: center;
+  padding: 40px 0;
+  color: #ff4d4f;
+  font-size: 14px;
+}
+
+.empty-message {
+  text-align: center;
+  padding: 40px 0;
+  color: #999;
+  font-size: 14px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .system-page {
+    padding: 16px;
+  }
+  
+  .system-page h2 {
+    font-size: 18px;
+  }
+  
+  .system-page h3 {
+    font-size: 14px;
+  }
+  
+  .card {
+    padding: 12px;
+  }
+  
+  .grid-container {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .status-card {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .system-page {
+    padding: 12px;
+  }
+  
+  .system-page h2 {
+    font-size: 16px;
+  }
+}
+
+/* Scrollbar Styling */
+.system-page::-webkit-scrollbar {
+  width: 6px;
+}
+
+.system-page::-webkit-scrollbar-track {
+  background: #1f1f1f;
+}
+
+.system-page::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
+.system-page::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}

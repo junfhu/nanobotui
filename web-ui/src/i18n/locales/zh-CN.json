@@ -1,0 +1,39 @@
+{
+  "api": {
+    "networkError": "网络错误",
+    "requestFailed": "请求失败"
+  },
+  "chat": {
+    "newSession": "新建会话",
+    "renameSession": "重命名会话",
+    "deleteSession": "删除会话",
+    "confirmDelete": "确定要删除这个会话吗？",
+    "sendMessage": "发送",
+    "messagePlaceholder": "在这里输入消息...",
+    "thinking": "思考中...",
+    "error": "错误：{{message}}"
+  },
+  "config": {
+    "save": "保存",
+    "saveSuccess": "配置保存成功",
+    "saveError": "保存配置失败",
+    "agents": "代理",
+    "channels": "渠道",
+    "providers": "提供商",
+    "models": "模型",
+    "mcps": "MCP服务",
+    "skills": "技能"
+  },
+  "layout": {
+    "chat": "聊天",
+    "config": "配置",
+    "system": "系统"
+  },
+  "system": {
+    "health": "健康状态",
+    "status": "状态",
+    "uptime": "运行时间",
+    "workspace": "工作空间",
+    "environment": "环境"
+  }
+}

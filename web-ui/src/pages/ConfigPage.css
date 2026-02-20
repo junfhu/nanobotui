@@ -1,0 +1,325 @@
+/* Config Page Styles */
+
+.config-page {
+  padding: 24px;
+  height: 100%;
+  overflow-y: auto;
+  background-color: #121212;
+  color: #ffffff;
+}
+
+.config-page h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: #e0e0e0;
+}
+
+.config-page h4 {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: #e0e0e0;
+}
+
+/* Tabs */
+.tabs-container {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.tab-button {
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.tab-button.active {
+  background-color: #1890ff;
+  color: white;
+}
+
+.tab-button:not(.active) {
+  background-color: #2d2d2d;
+  color: #e0e0e0;
+}
+
+.tab-button:not(.active):hover {
+  background-color: #3d3d3d;
+}
+
+/* Form Sections */
+.form-section {
+  background-color: #1f1f1f;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  border: 1px solid #333;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: #e0e0e0;
+}
+
+.form-input {
+  width: 100%;
+  padding: 8px 12px;
+  background-color: #2d2d2d;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #ffffff;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #1890ff;
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+
+.form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.form-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #1890ff;
+}
+
+.form-checkbox label {
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Nested Form */
+.nested-form {
+  padding-left: 24px;
+  margin-top: 8px;
+}
+
+/* Provider Cards */
+.providers-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.provider-card {
+  padding: 12px;
+  border: 1px solid #333;
+  border-radius: 8px;
+  background-color: #2d2d2d;
+}
+
+.provider-card h4 {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 4px;
+  color: #e0e0e0;
+}
+
+.provider-card p {
+  font-size: 12px;
+  color: #999;
+  margin: 4px 0;
+}
+
+/* Provider Section */
+.provider-section {
+  margin-bottom: 20px;
+  padding: 12px;
+  border: 1px solid #333;
+  border-radius: 8px;
+  background-color: #1a1a1a;
+}
+
+.provider-name {
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  color: #1890ff !important;
+  margin-bottom: 12px !important;
+}
+
+.provider-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.provider-inline-fields {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.provider-inline-fields .inline-field {
+  flex: 1;
+  min-width: 150px;
+  margin-bottom: 0;
+}
+
+/* Buttons */
+.button-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+.save-button {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.save-button:not(:disabled) {
+  background-color: #1890ff;
+  color: white;
+}
+
+.save-button:not(:disabled):hover {
+  background-color: #40a9ff;
+}
+
+.save-button:disabled {
+  background-color: #333;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.add-button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  background-color: #2d2d2d;
+  color: #e0e0e0;
+  border: 1px solid #444;
+}
+
+.add-button:hover {
+  background-color: #3d3d3d;
+  border-color: #555;
+}
+
+.mcp-server-section {
+  padding: 12px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.mcp-server-section h5 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1890ff;
+  margin-bottom: 8px;
+}
+
+/* Status Messages */
+.loading-message {
+  text-align: center;
+  padding: 40px 0;
+  color: #999;
+  font-size: 14px;
+}
+
+.error-message {
+  text-align: center;
+  padding: 40px 0;
+  color: #ff4d4f;
+  font-size: 14px;
+}
+
+.success-message {
+  background-color: rgba(82, 196, 26, 0.1);
+  border: 1px solid rgba(82, 196, 26, 0.3);
+  padding: 12px;
+  border-radius: 8px;
+  color: #52c41a;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .config-page {
+    padding: 16px;
+  }
+  
+  .tabs-container {
+    gap: 4px;
+  }
+  
+  .tab-button {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  
+  .form-section {
+    padding: 12px;
+  }
+  
+  .form-input {
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .config-page {
+    padding: 12px;
+  }
+  
+  .config-page h3 {
+    font-size: 16px;
+  }
+  
+  .config-page h4 {
+    font-size: 13px;
+  }
+  
+  .nested-form {
+    padding-left: 16px;
+  }
+}
+
+/* Scrollbar Styling */
+.config-page::-webkit-scrollbar {
+  width: 6px;
+}
+
+.config-page::-webkit-scrollbar-track {
+  background: #1f1f1f;
+}
+
+.config-page::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
+.config-page::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}

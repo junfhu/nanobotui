@@ -219,6 +219,7 @@ class LiteLLMProvider(LLMProvider):
         choice = response.choices[0]
         message = choice.message
         
+        
         tool_calls = []
         if hasattr(message, "tool_calls") and message.tool_calls:
             for tc in message.tool_calls:
