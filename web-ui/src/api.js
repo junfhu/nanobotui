@@ -73,6 +73,69 @@ export const api = {
       signal,
     }),
 
+  sendMessageStream: async (sessionId, content, { onProgress, onAck, signal } = {}) => {
+    const response = await fetch(`${API_BASE}/chat/sessions/${sessionId}/messages/stream`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content }),
+      signal,
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({
+        success: false,
+        error: { code: 'NETWORK_ERROR', message: i18n.t('api.networkError') }
+      }))
+      const err = new Error(errorData.error?.message || i18n.t('api.requestFailed'))
+      err.code = errorData.error?.code
+      throw err
+    }
+
+    if (!response.body) {
+      throw new Error(i18n.t('api.requestFailed'))
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let finalData = null
+
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      const frames = buffer.split('\n\n')
+      buffer = frames.pop() || ''
+
+      for (const frame of frames) {
+        const line = frame
+          .split('\n')
+          .find((l) => l.startsWith('data:'))
+        if (!line) continue
+
+        const payload = JSON.parse(line.slice(5).trim())
+        if (payload.type === 'progress' && onProgress) {
+          onProgress(payload.content || '')
+        } else if (payload.type === 'ack' && onAck) {
+          onAck(payload.userMessage)
+        } else if (payload.type === 'final') {
+          finalData = {
+            content: payload.content,
+            assistantMessage: payload.assistantMessage,
+          }
+        } else if (payload.type === 'error') {
+          throw new Error(payload.message || i18n.t('api.requestFailed'))
+        }
+      }
+    }
+
+    if (!finalData) {
+      throw new Error(i18n.t('api.requestFailed'))
+    }
+    return finalData
+  },
+
   // Configuration
   getConfig: () => request('/config'),
 

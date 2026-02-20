@@ -2,6 +2,9 @@
 
 import sys
 import os
+import socket
+import subprocess
+import asyncio
 from pathlib import Path
 
 # Add nanobot to path
@@ -45,6 +48,71 @@ app.add_middleware(
 NANOBOT_AVAILABLE = False
 agent_loop = None
 message_bus = None
+gateway_process: subprocess.Popen | None = None
+
+
+def _env_enabled(name: str, default: str = "false") -> bool:
+    """Parse a boolean-like environment variable."""
+    value = os.environ.get(name, default).strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def _is_port_open(host: str, port: int, timeout: float = 0.3) -> bool:
+    """Return True if a TCP port is already in use."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(timeout)
+        return sock.connect_ex((host, port)) == 0
+
+
+def _start_gateway_if_needed() -> None:
+    """
+    Start `nanobot gateway` as a background subprocess when enabled.
+
+    Controlled by:
+    - NANOBOT_AUTO_START_GATEWAY=true|false (default: true)
+    - NANOBOT_GATEWAY_PORT=18790
+    """
+    global gateway_process
+
+    if not _env_enabled("NANOBOT_AUTO_START_GATEWAY", "true"):
+        return
+
+    port = int(os.environ.get("NANOBOT_GATEWAY_PORT", "18790"))
+    if _is_port_open("127.0.0.1", port):
+        logger.info("Gateway already running on port {}", port)
+        return
+
+    cmd = [sys.executable, "-m", "nanobot", "gateway", "--port", str(port)]
+    try:
+        gateway_process = subprocess.Popen(
+            cmd,
+            cwd=str(NANOBOT_PATH),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        logger.info("Auto-started nanobot gateway (pid={}, port={})", gateway_process.pid, port)
+    except Exception as e:
+        logger.error("Failed to auto-start nanobot gateway: {}", e)
+
+
+def _stop_gateway_if_started() -> None:
+    """Stop auto-started gateway process on web backend shutdown."""
+    global gateway_process
+
+    if not gateway_process or gateway_process.poll() is not None:
+        return
+
+    try:
+        gateway_process.terminate()
+        gateway_process.wait(timeout=5)
+        logger.info("Stopped auto-started gateway (pid={})", gateway_process.pid)
+    except Exception:
+        try:
+            gateway_process.kill()
+        except Exception:
+            pass
+    finally:
+        gateway_process = None
 
 
 async def init_nanobot():
@@ -136,6 +204,7 @@ SESSIONS_DIR = DATA_DIR / "sessions"
 async def startup_event():
     """Startup event handler."""
     print("Starting nanobot web backend...")
+    _start_gateway_if_needed()
     # Create data directories if they don't exist
     SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
     # Initialize nanobot
@@ -144,6 +213,12 @@ async def startup_event():
         print("Nanobot integration enabled!")
     else:
         print("Backend started in limited mode (nanobot integration pending)")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Shutdown event handler."""
+    _stop_gateway_if_started()
 
 
 @app.get("/")
@@ -272,6 +347,11 @@ async def generate_ai_response(content: str, session_id: str = "web:default") ->
         import traceback
         traceback.print_exc()
         return f"Error: {str(e)}"
+
+
+def _sse_event(data: dict) -> str:
+    """Build one SSE data frame."""
+    return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
 # Session endpoints
@@ -465,6 +545,88 @@ async def send_message_endpoint(session_id: str, body: dict = Body(...)):
                 "message": str(e)
             }
         }
+
+
+@app.post("/api/v1/chat/sessions/{session_id}/messages/stream")
+async def send_message_stream_endpoint(session_id: str, body: dict = Body(...)):
+    """Send message and stream progress updates via SSE."""
+    content = (body.get("content") or "").strip()
+    if not content:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "success": False,
+                "data": None,
+                "error": {"code": "BAD_REQUEST", "message": "content is required"},
+            },
+        )
+
+    # Persist user message immediately.
+    user_message = add_message(session_id, content, "user")
+
+    async def event_stream():
+        queue: asyncio.Queue[dict | None] = asyncio.Queue()
+        last_progress = ""
+
+        async def on_progress(update: str) -> None:
+            nonlocal last_progress
+            update = (update or "").strip()
+            # Skip empty or duplicate updates to reduce noise/flicker.
+            if not update or update == last_progress:
+                return
+            last_progress = update
+            await queue.put({"type": "progress", "content": update})
+
+        async def run_agent():
+            try:
+                if not NANOBOT_AVAILABLE or agent_loop is None:
+                    ai_response = f"This is a placeholder response for: {content}"
+                else:
+                    ai_response = await agent_loop.process_direct(
+                        content=content,
+                        session_key=session_id,
+                        channel="web",
+                        chat_id=session_id,
+                        on_progress=on_progress,
+                    )
+
+                ai_message = add_message(session_id, ai_response, "assistant")
+                await queue.put(
+                    {
+                        "type": "final",
+                        "content": ai_response,
+                        "assistantMessage": ai_message,
+                    }
+                )
+            except Exception as e:
+                logger.error("Error in streaming message endpoint: {}", e)
+                await queue.put({"type": "error", "message": str(e)})
+            finally:
+                await queue.put(None)
+
+        task = asyncio.create_task(run_agent())
+
+        try:
+            # Initial ack lets frontend replace temp user message with persisted one if needed.
+            yield _sse_event({"type": "ack", "userMessage": user_message})
+            while True:
+                item = await queue.get()
+                if item is None:
+                    break
+                yield _sse_event(item)
+        finally:
+            if not task.done():
+                task.cancel()
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 # Config endpoints

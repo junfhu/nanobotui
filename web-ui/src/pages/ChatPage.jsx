@@ -30,9 +30,11 @@ const ChatPage = () => {
     messages, 
     loading: messagesLoading, 
     sending, 
+    progress,
     error: messagesError,
     loadMessages, 
     sendMessage, 
+    stopMessage,
     clearMessages 
   } = useMessageStore()
   const [inputMessage, setInputMessage] = useState('')
@@ -111,14 +113,23 @@ const ChatPage = () => {
   // Handle send message
   const handleSendMessage = async () => {
     if (inputMessage.trim() && currentSession) {
+      const text = inputMessage.trim()
+      setInputMessage('')
       try {
-        await sendMessage(currentSession.id, inputMessage.trim())
-        setInputMessage('')
+        const result = await sendMessage(currentSession.id, text)
+        if (result?.aborted) {
+          return
+        }
       } catch (error) {
+        setInputMessage(text)
         message.error(t('chat.sendMessageFailed'))
         console.error(error)
       }
     }
+  }
+
+  const handleStopMessage = () => {
+    stopMessage()
   }
 
   // Handle key press
@@ -326,6 +337,11 @@ const ChatPage = () => {
                             <Spin size="small" />
                             <span>{t('chat.thinking')}</span>
                           </div>
+                          {progress && (
+                            <div style={{ marginTop: 8, color: '#bbbbbb', whiteSpace: 'pre-wrap' }}>
+                              {progress}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -357,7 +373,7 @@ const ChatPage = () => {
               <Button
                 type="primary"
                 icon={sending ? <StopOutlined /> : <SendOutlined />}
-                onClick={handleSendMessage}
+                onClick={sending ? handleStopMessage : handleSendMessage}
                 danger={sending}
                 disabled={(!currentSession || !inputMessage.trim()) && !sending}
                 className="send-button"

@@ -103,6 +103,8 @@ export const useMessageStore = create((set, get) => ({
   messages: [],
   loading: false,
   sending: false,
+  progress: '',
+  abortController: null,
   error: null,
   
   // Load messages
@@ -118,37 +120,75 @@ export const useMessageStore = create((set, get) => ({
   
   // Send message
   sendMessage: async (sessionId, content) => {
-    set({ sending: true, error: null })
+    if (get().sending) {
+      return { aborted: false, ignored: true }
+    }
+
+    const currentMessages = get().messages
+    const tempUserMessage = {
+      id: `temp-user-${Date.now()}`,
+      sessionId,
+      role: 'user',
+      content,
+      createdAt: new Date().toISOString(),
+      sequence: currentMessages.length,
+      toolSteps: [],
+      tokenUsage: null
+    }
+
+    // Optimistic update: show user message immediately.
+    const controller = new AbortController()
+    set({
+      messages: [...currentMessages, tempUserMessage],
+      sending: true,
+      progress: '',
+      abortController: controller,
+      error: null
+    })
+
     try {
-      const response = await api.sendMessage(sessionId, content)
-      const currentMessages = get().messages
-      // Add user message
-      const userMessage = {
-        id: `temp-${Date.now()}`,
-        sessionId,
-        role: 'user',
-        content,
-        createdAt: new Date().toISOString(),
-        sequence: currentMessages.length,
-        toolSteps: [],
-        tokenUsage: null
-      }
-      // Add assistant message
-      const assistantMessage = response.assistantMessage
-      set({ 
-        messages: [...currentMessages, userMessage, assistantMessage],
-        sending: false 
+      const response = await api.sendMessageStream(sessionId, content, {
+        signal: controller.signal,
+        onProgress: (text) => {
+          set({ progress: text || '' })
+        }
       })
+
+      const assistantMessage = response.assistantMessage
+      set((state) => ({
+        messages: [...state.messages, assistantMessage],
+        sending: false,
+        progress: ''
+      }))
       return response
     } catch (error) {
-      set({ error: error.message, sending: false })
+      if (error?.name === 'AbortError') {
+        set({ sending: false, progress: '', abortController: null })
+        return { aborted: true }
+      }
+      set({ error: error.message, sending: false, progress: '', abortController: null })
       throw error
+    } finally {
+      set((state) => {
+        if (state.abortController === controller) {
+          return { abortController: null }
+        }
+        return {}
+      })
+    }
+  },
+
+  // Stop current sending request
+  stopMessage: () => {
+    const controller = get().abortController
+    if (controller) {
+      controller.abort()
     }
   },
   
   // Clear messages
   clearMessages: () => {
-    set({ messages: [] })
+    set({ messages: [], progress: '', abortController: null })
   }
 }))
 
