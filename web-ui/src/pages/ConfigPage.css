@@ -263,6 +263,34 @@
   margin-bottom: 16px;
 }
 
+.error-message-inline {
+  background-color: rgba(255, 77, 79, 0.1);
+  border: 1px solid rgba(255, 77, 79, 0.28);
+  padding: 12px;
+  border-radius: 8px;
+  color: var(--nb-danger);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.backup-restore-container {
+  margin-bottom: 16px;
+  padding: 14px;
+  border: 1px solid var(--nb-border);
+  border-radius: 8px;
+  background-color: var(--nb-panel);
+}
+
+.backup-restore-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hidden-file-input {
+  display: none;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .config-page {

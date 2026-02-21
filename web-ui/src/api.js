@@ -171,5 +171,17 @@ export const api = {
     request('/config', {
       method: 'POST',
       body: JSON.stringify(config),
-    })
+    }),
+
+  backupConfig: (filename, config) =>
+    request('/config/backup', {
+      method: 'POST',
+      body: JSON.stringify({ filename, config }),
+    }),
+
+  restoreConfig: (filename) =>
+    request('/config/restore', {
+      method: 'POST',
+      body: JSON.stringify({ filename }),
+    }),
 }

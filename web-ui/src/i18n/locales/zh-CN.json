@@ -70,7 +70,13 @@
     "addMcpServer": "+ 添加 MCP 服务",
     "saving": "保存中...",
     "saveConfig": "保存配置",
-    "saveErrorLog": "保存配置出错："
+    "saveErrorLog": "保存配置出错：",
+    "backupConfig": "备份到本机",
+    "restoreConfig": "从本机恢复",
+    "backupSuccess": "备份已保存：{{filename}}",
+    "restoreSuccess": "已从备份恢复：{{filename}}",
+    "backupFailed": "备份失败",
+    "restoreFailed": "恢复失败"
   },
   "layout": {
     "chat": "聊天",

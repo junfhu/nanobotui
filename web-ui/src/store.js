@@ -252,5 +252,35 @@ export const useConfigStore = create((set, get) => ({
       set({ error: error.message, saving: false })
       throw error
     }
+  },
+
+  // Backup config to named file
+  backupConfig: async (filename, configToBackup) => {
+    set({ saving: true, error: null })
+    try {
+      const result = await api.backupConfig(filename, configToBackup)
+      set({ saving: false })
+      return result
+    } catch (error) {
+      set({ error: error.message, saving: false })
+      throw error
+    }
+  },
+
+  // Restore config from named file
+  restoreConfig: async (filename) => {
+    set({ saving: true, error: null })
+    try {
+      const result = await api.restoreConfig(filename)
+      const restoredConfig = result?.config || null
+      set({
+        config: restoredConfig || get().config,
+        saving: false
+      })
+      return result
+    } catch (error) {
+      set({ error: error.message, saving: false })
+      throw error
+    }
   }
 }))

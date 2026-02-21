@@ -5,6 +5,7 @@ import os
 import socket
 import subprocess
 import asyncio
+import re
 from pathlib import Path
 
 # Add nanobot to path
@@ -184,6 +185,27 @@ async def init_nanobot():
 # Data storage
 DATA_DIR = Path.home() / ".nanobot" / "web"
 SESSIONS_DIR = DATA_DIR / "sessions"
+CONFIG_DIR = Path.home() / ".nanobot"
+CONFIG_PATH = CONFIG_DIR / "config.json"
+CONFIG_BACKUP_DIR = CONFIG_DIR / "config_backups"
+
+
+def _normalize_backup_filename(name: str) -> str:
+    """
+    Validate and normalize backup file name.
+
+    Only allow letters/numbers/._- and append .json when omitted.
+    """
+    trimmed = (name or "").strip()
+    if not trimmed:
+        raise ValueError("Backup filename is required")
+    if "/" in trimmed or "\\" in trimmed:
+        raise ValueError("Backup filename must not include path separators")
+    if not re.fullmatch(r"[A-Za-z0-9._-]+", trimmed):
+        raise ValueError("Backup filename contains invalid characters")
+    if not trimmed.endswith(".json"):
+        trimmed = f"{trimmed}.json"
+    return trimmed
 
 
 @asynccontextmanager
@@ -658,11 +680,9 @@ async def get_config():
 async def save_config(config: dict):
     """Save full configuration."""
     try:
-        import os
-        config_path = Path.home() / ".nanobot" / "config.json"
-        config_path.parent.mkdir(parents=True, exist_ok=True)
+        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
         
-        with open(config_path, 'w') as f:
+        with open(CONFIG_PATH, 'w') as f:
             json.dump(config, f, indent=2)
         
         return {
@@ -681,13 +701,112 @@ async def save_config(config: dict):
         }
 
 
+@app.post("/api/v1/config/backup")
+async def backup_config(payload: dict = Body(default={})):
+    """Backup config to a named JSON file under ~/.nanobot/config_backups."""
+    try:
+        filename = _normalize_backup_filename(payload.get("filename", ""))
+        config_data = payload.get("config")
+        if config_data is None:
+            if CONFIG_PATH.exists():
+                with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+                    config_data = json.load(f)
+            else:
+                config_data = load_config().model_dump(by_alias=True)
+
+        CONFIG_BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+        backup_path = CONFIG_BACKUP_DIR / filename
+        with open(backup_path, 'w', encoding='utf-8') as f:
+            json.dump(config_data, f, indent=2, ensure_ascii=False)
+
+        return {
+            "success": True,
+            "data": {
+                "message": "Config backup saved",
+                "filename": filename,
+                "path": str(backup_path),
+            },
+            "error": None
+        }
+    except ValueError as e:
+        return {
+            "success": False,
+            "data": None,
+            "error": {
+                "code": "INVALID_FILENAME",
+                "message": str(e)
+            }
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "data": None,
+            "error": {
+                "code": "BACKUP_ERROR",
+                "message": str(e)
+            }
+        }
+
+
+@app.post("/api/v1/config/restore")
+async def restore_config(payload: dict = Body(default={})):
+    """Restore config from a named JSON backup file."""
+    try:
+        filename = _normalize_backup_filename(payload.get("filename", ""))
+        backup_path = CONFIG_BACKUP_DIR / filename
+        if not backup_path.exists():
+            return {
+                "success": False,
+                "data": None,
+                "error": {
+                    "code": "BACKUP_NOT_FOUND",
+                    "message": f"Backup file not found: {filename}"
+                }
+            }
+
+        with open(backup_path, 'r', encoding='utf-8') as f:
+            restored = json.load(f)
+
+        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+            json.dump(restored, f, indent=2, ensure_ascii=False)
+
+        return {
+            "success": True,
+            "data": {
+                "message": "Config restored",
+                "filename": filename,
+                "config": restored,
+            },
+            "error": None
+        }
+    except ValueError as e:
+        return {
+            "success": False,
+            "data": None,
+            "error": {
+                "code": "INVALID_FILENAME",
+                "message": str(e)
+            }
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "data": None,
+            "error": {
+                "code": "RESTORE_ERROR",
+                "message": str(e)
+            }
+        }
+
+
 @app.put("/api/v1/config/agent")
 async def update_agent_config(agent: dict):
     """Update agent configuration."""
     try:
         # Common config locations
         config_paths = [
-            Path.home() / ".nanobot" / "config.json",
+            CONFIG_PATH,
             Path(".") / "config.json",
             Path("~") / ".nanobot" / "config.json"
         ]
@@ -699,7 +818,7 @@ async def update_agent_config(agent: dict):
                 break
         
         if not config_path:
-            config_path = Path.home() / ".nanobot" / "config.json"
+            config_path = CONFIG_PATH
         
         # Load existing config
         if config_path.exists():
@@ -764,7 +883,7 @@ async def get_channels():
 async def update_channels(channels: dict):
     """Update channel configuration."""
     try:
-        config_path = Path.home() / ".nanobot" / "config.json"
+        config_path = CONFIG_PATH
         
         # Load existing config
         if config_path.exists():
@@ -867,10 +986,9 @@ async def chat(chat_data: dict):
 async def save_config_compat(config: dict):
     """Save config (backward compatibility)."""
     try:
-        config_path = Path.home() / ".nanobot" / "config.json"
-        config_path.parent.mkdir(parents=True, exist_ok=True)
+        CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
         
-        with open(config_path, 'w') as f:
+        with open(CONFIG_PATH, 'w') as f:
             json.dump(config, f, indent=2)
         
         return {"success": True, "message": "Config saved"}

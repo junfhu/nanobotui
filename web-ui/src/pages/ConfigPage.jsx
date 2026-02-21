@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useConfigStore } from '../store'
 import './ConfigPage.css'
@@ -16,6 +16,8 @@ const ConfigPage = () => {
   const [activeTab, setActiveTab] = useState('agents')
   const [localConfig, setLocalConfig] = useState(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [actionMessage, setActionMessage] = useState(null)
+  const restoreFileInputRef = useRef(null)
 
   // Load config on mount
   useEffect(() => {
@@ -57,10 +59,55 @@ const ConfigPage = () => {
   const handleSave = async () => {
     try {
       await saveConfig(localConfig)
+      setActionMessage({ type: 'success', text: t('config.saveSuccess') })
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
     } catch (error) {
+      setActionMessage({ type: 'error', text: error.message || t('config.saveError') })
       console.error(t('configPage.saveErrorLog'), error)
+    }
+  }
+
+  const handleBackupConfig = () => {
+    try {
+      const now = new Date()
+      const pad = (n) => String(n).padStart(2, '0')
+      const filename = `nanobot-config-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.json`
+      const blob = new Blob([JSON.stringify(localConfig, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      setActionMessage({ type: 'success', text: t('configPage.backupSuccess', { filename }) })
+    } catch (err) {
+      setActionMessage({ type: 'error', text: err.message || t('configPage.backupFailed') })
+    }
+  }
+
+  const handleRestoreConfig = () => {
+    restoreFileInputRef.current?.click()
+  }
+
+  const handleRestoreFileChange = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    try {
+      const text = await file.text()
+      const restoredConfig = JSON.parse(text)
+      await saveConfig(restoredConfig)
+      setLocalConfig(JSON.parse(JSON.stringify(restoredConfig)))
+      setActionMessage({
+        type: 'success',
+        text: t('configPage.restoreSuccess', { filename: file.name }),
+      })
+    } catch (err) {
+      setActionMessage({ type: 'error', text: err.message || t('configPage.restoreFailed') })
+    } finally {
+      event.target.value = ''
     }
   }
 
@@ -541,11 +588,38 @@ const ConfigPage = () => {
         <div className="error-message">{error}</div>
       ) : (
         <div>
-          {saveSuccess && (
-            <div className="success-message">
-              {t('config.saveSuccess')}
+          {(saveSuccess || actionMessage) && (
+            <div className={`${actionMessage?.type === 'error' ? 'error-message-inline' : 'success-message'}`}>
+              {actionMessage?.text || t('config.saveSuccess')}
             </div>
           )}
+          <div className="backup-restore-container">
+            <div className="backup-restore-buttons">
+              <button
+                onClick={handleBackupConfig}
+                disabled={saving}
+                className="add-button"
+                type="button"
+              >
+                {t('configPage.backupConfig')}
+              </button>
+              <button
+                onClick={handleRestoreConfig}
+                disabled={saving}
+                className="add-button"
+                type="button"
+              >
+                {t('configPage.restoreConfig')}
+              </button>
+            </div>
+            <input
+              ref={restoreFileInputRef}
+              type="file"
+              accept="application/json,.json"
+              onChange={handleRestoreFileChange}
+              className="hidden-file-input"
+            />
+          </div>
           {renderTabContent()}
           <div className="button-container">
             <button

@@ -70,7 +70,13 @@
     "addMcpServer": "+ Add MCP Server",
     "saving": "Saving...",
     "saveConfig": "Save Config",
-    "saveErrorLog": "Error saving config:"
+    "saveErrorLog": "Error saving config:",
+    "backupConfig": "Backup To Device",
+    "restoreConfig": "Restore From Device",
+    "backupSuccess": "Backup saved: {{filename}}",
+    "restoreSuccess": "Restored from: {{filename}}",
+    "backupFailed": "Backup failed",
+    "restoreFailed": "Restore failed"
   },
   "layout": {
     "chat": "Chat",
