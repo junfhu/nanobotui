@@ -12,6 +12,7 @@ NANOBOT_PATH = Path("/mnt/d/AI/nanobot")
 if str(NANOBOT_PATH) not in sys.path:
     sys.path.insert(0, str(NANOBOT_PATH))
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -28,21 +29,6 @@ from nanobot.config.loader import load_config
 from nanobot.providers.litellm_provider import LiteLLMProvider
 from nanobot.providers.openai_codex_provider import OpenAICodexProvider
 from nanobot.providers.custom_provider import CustomProvider
-
-app = FastAPI(
-    title="Nanobot Web API",
-    description="Web API for nanobot",
-    version="0.1.0"
-)
-
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # Global variables
 NANOBOT_AVAILABLE = False
@@ -200,9 +186,10 @@ DATA_DIR = Path.home() / ".nanobot" / "web"
 SESSIONS_DIR = DATA_DIR / "sessions"
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Startup event handler."""
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan context manager for startup and shutdown events."""
+    # Startup
     print("Starting nanobot web backend...")
     _start_gateway_if_needed()
     # Create data directories if they don't exist
@@ -213,12 +200,28 @@ async def startup_event():
         print("Nanobot integration enabled!")
     else:
         print("Backend started in limited mode (nanobot integration pending)")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Shutdown event handler."""
+    
+    yield
+    
+    # Shutdown
     _stop_gateway_if_started()
+
+
+app = FastAPI(
+    title="Nanobot Web API",
+    description="Web API for nanobot",
+    version="0.1.0",
+    lifespan=lifespan
+)
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/")
