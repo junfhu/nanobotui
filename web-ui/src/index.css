@@ -2,15 +2,57 @@
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: light;
+  --nb-primary: #1890ff;
+  --nb-success: #52c41a;
+  --nb-danger: #ff4d4f;
+  --nb-bg: #f4f7fb;
+  --nb-panel: #ffffff;
+  --nb-surface: #f7f9fc;
+  --nb-surface-strong: #eef2f8;
+  --nb-bubble-assistant: #eef2f8;
+  --nb-bubble-user: #0f5fd6;
+  --nb-bubble-user-text: #ffffff;
+  --nb-bubble-user-border: #0b4cae;
+  --nb-bubble-user-accent: #f3f8ff;
+  --nb-bubble-user-meta: rgba(255, 255, 255, 0.82);
+  --nb-border: #d9e0eb;
+  --nb-border-strong: #c5d0e0;
+  --nb-hover: #e9f2ff;
+  --nb-text: #1d2a3a;
+  --nb-text-soft: #2f3f53;
+  --nb-text-muted: #6a7a90;
+  --nb-code-bg: rgba(26, 45, 74, 0.08);
+  --nb-pre-bg: rgba(26, 45, 74, 0.06);
+  --nb-shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.08);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --nb-bg: #121212;
+  --nb-panel: #1f1f1f;
+  --nb-surface: rgba(255, 255, 255, 0.02);
+  --nb-surface-strong: #2d2d2d;
+  --nb-bubble-assistant: #2d2d2d;
+  --nb-bubble-user: #1890ff;
+  --nb-bubble-user-text: #ffffff;
+  --nb-bubble-user-border: #3aa0ff;
+  --nb-bubble-user-accent: #ffffff;
+  --nb-bubble-user-meta: rgba(255, 255, 255, 0.85);
+  --nb-border: #333333;
+  --nb-border-strong: #444444;
+  --nb-hover: rgba(255, 255, 255, 0.08);
+  --nb-text: #e8edf5;
+  --nb-text-soft: #d9e0eb;
+  --nb-text-muted: #99a7b8;
+  --nb-code-bg: rgba(255, 255, 255, 0.1);
+  --nb-pre-bg: rgba(255, 255, 255, 0.05);
+  --nb-shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
 
 * {
@@ -23,6 +65,8 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background-color: var(--nb-bg);
+  color: var(--nb-text);
 }
 
 /* Basic styles */

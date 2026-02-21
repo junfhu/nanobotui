@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Layout, Input, Button, Typography, Avatar, Space, Spin, message, Empty, Modal, ConfigProvider } from 'antd'
+import { Layout, Input, Button, Typography, Avatar, Space, Spin, message, Empty, Modal, ConfigProvider, theme as antdTheme } from 'antd'
 import { SendOutlined, PlusOutlined, DeleteOutlined, EditOutlined, RobotOutlined, UserOutlined, StopOutlined } from '@ant-design/icons'
+import { useOutletContext } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
@@ -15,6 +16,8 @@ const { Text } = Typography
 
 const ChatPage = () => {
   const { t } = useTranslation()
+  const { themeMode = 'dark' } = useOutletContext() || {}
+  const isDark = themeMode === 'dark'
   const { 
     sessions, 
     currentSession, 
@@ -152,48 +155,18 @@ const ChatPage = () => {
     }
   }
 
+  const antTheme = useMemo(() => ({
+    algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
+    token: {
+      colorPrimary: '#1890ff',
+      borderRadius: 8,
+    },
+  }), [isDark])
+
   return (
-    <ConfigProvider
-      theme={{
-        token: {
-          colorPrimary: '#1890ff',
-          colorSuccess: '#52c41a',
-          colorError: '#ff4d4f',
-          colorText: '#ffffff',
-          colorTextSecondary: '#e0e0e0',
-          colorTextTertiary: '#999999',
-          colorBorder: '#333333',
-          colorBorderSecondary: '#444444',
-          colorBgLayout: '#121212',
-          colorBgElevated: '#1f1f1f',
-          colorBgContainer: '#2d2d2d',
-          borderRadius: 8,
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
-        },
-        components: {
-          Button: {
-            borderRadius: 8,
-            height: 36,
-          },
-          Input: {
-            borderRadius: 8,
-            colorBgContainer: '#2d2d2d',
-            colorText: '#ffffff',
-            colorBorder: '#333333',
-          },
-          Modal: {
-            colorBgContainer: '#1f1f1f',
-            colorText: '#ffffff',
-            colorBorder: '#333333',
-          },
-          Empty: {
-            colorText: '#999999',
-          },
-        },
-      }}
-    >
+    <ConfigProvider theme={antTheme}>
       <Layout className="chat-page">
-        <Sider width={280} theme="dark" className="chat-sider">
+        <Sider width={280} theme={isDark ? 'dark' : 'light'} className="chat-sider">
           <div className="sider-header">
             <Button
               type="primary"
@@ -265,7 +238,7 @@ const ChatPage = () => {
         <Layout>
           <Header className="chat-header">
             <Space>
-              <Text strong style={{ fontSize: 16, color: 'white' }}>
+              <Text strong className="chat-session-title">
                 {currentSession?.title || t('chat.selectOrCreate')}
               </Text>
             </Space>
@@ -275,14 +248,14 @@ const ChatPage = () => {
             {!currentSession ? (
               <div className="empty-chat">
                 <Empty
-                  image={<RobotOutlined style={{ fontSize: 64, color: '#1890ff' }} />}
+                  image={<RobotOutlined style={{ fontSize: 64, color: 'var(--nb-primary)' }} />}
                   description={t('chat.selectToStart')}
                 />
               </div>
             ) : messagesLoading ? (
               <div className="loading-messages">
                 <Spin size="large" />
-                <div style={{ marginTop: 16, color: '#999' }}>{t('chat.loadingMessages')}</div>
+                <div className="loading-message-text">{t('chat.loadingMessages')}</div>
               </div>
             ) : messagesError ? (
               <div className="error-messages">
@@ -296,28 +269,26 @@ const ChatPage = () => {
                     className={`message-wrapper ${message.role}`}
                   >
                     <div className="message-bubble">
-                      <div className="message-avatar-row">
+                      <div className="message-inline">
                         <Avatar
                           icon={message.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
                           className={`message-avatar ${message.role}`}
                         />
-                        <div className="message-header">
-                          <Text strong style={{ color: message.role === 'user' ? '#1890ff' : '#52c41a' }}>
-                            {message.role === 'user' ? t('chat.you') : t('chat.assistantName')}
-                          </Text>
-                          {message.createdAt && (
-                            <span className="message-time">{formatMessageTime(message.createdAt)}</span>
-                          )}
+                        <Text strong className={`message-speaker ${message.role}`}>
+                          {message.role === 'user' ? t('chat.you') : t('chat.assistantName')}:
+                        </Text>
+                        <div className="message-content message-inline-content">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            rehypePlugins={[rehypeHighlight]}
+                            className="markdown-body"
+                          >
+                            {message.content}
+                          </ReactMarkdown>
                         </div>
-                      </div>
-                      <div className="message-content">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          rehypePlugins={[rehypeHighlight]}
-                          className="markdown-body"
-                        >
-                          {message.content}
-                        </ReactMarkdown>
+                        {message.createdAt && (
+                          <span className="message-time">{formatMessageTime(message.createdAt)}</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -325,23 +296,23 @@ const ChatPage = () => {
                 {sending && (
                   <div className="message-wrapper assistant">
                     <div className="message-bubble">
-                      <div className="message-avatar-row">
+                      <div className="message-inline">
                         <Avatar icon={<RobotOutlined />} className="message-avatar assistant" />
-                        <div className="message-header">
-                          <Text strong style={{ color: '#52c41a' }}>{t('chat.assistantName')}</Text>
-                        </div>
-                      </div>
-                      <div className="message-content">
-                        <div className="loading-text">
-                          <div className="loading-status">
-                            <Spin size="small" />
-                            <span>{t('chat.thinking')}</span>
-                          </div>
-                          {progress && (
-                            <div style={{ marginTop: 8, color: '#bbbbbb', whiteSpace: 'pre-wrap' }}>
-                              {progress}
+                        <Text strong className="message-speaker assistant">
+                          {t('chat.assistantName')}:
+                        </Text>
+                        <div className="message-content message-inline-content">
+                          <div className="loading-text">
+                            <div className="loading-status">
+                              <Spin size="small" />
+                              <span>{t('chat.thinking')}</span>
                             </div>
-                          )}
+                            {progress && (
+                              <div className="loading-progress">
+                                {progress}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -352,7 +323,7 @@ const ChatPage = () => {
             ) : (
               <div className="empty-chat">
                 <Empty
-                  image={<RobotOutlined style={{ fontSize: 64, color: '#1890ff' }} />}
+                  image={<RobotOutlined style={{ fontSize: 64, color: 'var(--nb-primary)' }} />}
                   description={t('chat.firstMessage')}
                 />
               </div>

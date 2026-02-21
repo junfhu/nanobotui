@@ -4,31 +4,31 @@
   padding: 24px;
   height: 100%;
   overflow-y: auto;
-  background-color: #121212;
-  color: #ffffff;
+  background-color: var(--nb-bg);
+  color: var(--nb-text);
 }
 
 .system-page h2 {
   font-size: 20px;
   font-weight: 600;
   margin-bottom: 16px;
-  color: #e0e0e0;
+  color: var(--nb-text);
 }
 
 .system-page h3 {
   font-size: 16px;
   font-weight: 500;
   margin-bottom: 12px;
-  color: #e0e0e0;
+  color: var(--nb-text);
 }
 
 /* Card Styles */
 .card {
-  background-color: #1f1f1f;
+  background-color: var(--nb-panel);
   padding: 16px;
   border-radius: 8px;
   margin-bottom: 16px;
-  border: 1px solid #333;
+  border: 1px solid var(--nb-border);
 }
 
 /* Grid Layout */
@@ -41,10 +41,10 @@
 
 /* Status Cards */
 .status-card {
-  background-color: #2d2d2d;
+  background-color: var(--nb-surface-strong);
   padding: 12px;
   border-radius: 6px;
-  border: 1px solid #333;
+  border: 1px solid var(--nb-border);
   transition: all 0.2s ease;
 }
 
@@ -59,13 +59,13 @@
 
 .status-label {
   font-size: 12px;
-  color: #999;
+  color: var(--nb-text-muted);
 }
 
 .status-value {
   font-size: 14px;
   font-weight: 500;
-  color: #e0e0e0;
+  color: var(--nb-text);
 }
 
 /* Service Status */
@@ -81,7 +81,7 @@
 .loading-message {
   text-align: center;
   padding: 40px 0;
-  color: #999;
+  color: var(--nb-text-muted);
   font-size: 14px;
 }
 
@@ -95,7 +95,7 @@
 .empty-message {
   text-align: center;
   padding: 40px 0;
-  color: #999;
+  color: var(--nb-text-muted);
   font-size: 14px;
 }
 
@@ -143,14 +143,14 @@
 }
 
 .system-page::-webkit-scrollbar-track {
-  background: #1f1f1f;
+  background: var(--nb-panel);
 }
 
 .system-page::-webkit-scrollbar-thumb {
-  background: #333;
+  background: var(--nb-border);
   border-radius: 3px;
 }
 
 .system-page::-webkit-scrollbar-thumb:hover {
-  background: #444;
+  background: var(--nb-border-strong);
 }

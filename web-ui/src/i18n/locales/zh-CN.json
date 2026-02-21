@@ -75,7 +75,9 @@
   "layout": {
     "chat": "聊天",
     "config": "配置",
-    "system": "系统"
+    "system": "系统",
+    "darkMode": "夜间模式",
+    "lightMode": "日间模式"
   },
   "system": {
     "health": "健康状态",

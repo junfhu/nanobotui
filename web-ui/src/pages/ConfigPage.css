@@ -4,22 +4,22 @@
   padding: 24px;
   height: 100%;
   overflow-y: auto;
-  background-color: #121212;
-  color: #ffffff;
+  background-color: var(--nb-bg);
+  color: var(--nb-text);
 }
 
 .config-page h3 {
   font-size: 18px;
   font-weight: 600;
   margin-bottom: 16px;
-  color: #e0e0e0;
+  color: var(--nb-text);
 }
 
 .config-page h4 {
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 8px;
-  color: #e0e0e0;
+  color: var(--nb-text);
 }
 
 /* Tabs */
@@ -45,21 +45,21 @@
 }
 
 .tab-button:not(.active) {
-  background-color: #2d2d2d;
-  color: #e0e0e0;
+  background-color: var(--nb-surface-strong);
+  color: var(--nb-text);
 }
 
 .tab-button:not(.active):hover {
-  background-color: #3d3d3d;
+  background-color: var(--nb-hover);
 }
 
 /* Form Sections */
 .form-section {
-  background-color: #1f1f1f;
+  background-color: var(--nb-panel);
   padding: 16px;
   border-radius: 8px;
   margin-bottom: 16px;
-  border: 1px solid #333;
+  border: 1px solid var(--nb-border);
 }
 
 .form-group {
@@ -71,16 +71,16 @@
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 4px;
-  color: #e0e0e0;
+  color: var(--nb-text);
 }
 
 .form-input {
   width: 100%;
   padding: 8px 12px;
-  background-color: #2d2d2d;
-  border: 1px solid #333;
+  background-color: var(--nb-surface-strong);
+  border: 1px solid var(--nb-border);
   border-radius: 6px;
-  color: #ffffff;
+  color: var(--nb-text);
   font-size: 14px;
   transition: all 0.2s ease;
 }
@@ -124,21 +124,21 @@
 
 .provider-card {
   padding: 12px;
-  border: 1px solid #333;
+  border: 1px solid var(--nb-border);
   border-radius: 8px;
-  background-color: #2d2d2d;
+  background-color: var(--nb-surface-strong);
 }
 
 .provider-card h4 {
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 4px;
-  color: #e0e0e0;
+  color: var(--nb-text);
 }
 
 .provider-card p {
   font-size: 12px;
-  color: #999;
+  color: var(--nb-text-muted);
   margin: 4px 0;
 }
 
@@ -146,9 +146,9 @@
 .provider-section {
   margin-bottom: 20px;
   padding: 12px;
-  border: 1px solid #333;
+  border: 1px solid var(--nb-border);
   border-radius: 8px;
-  background-color: #1a1a1a;
+  background-color: var(--nb-surface);
 }
 
 .provider-name {
@@ -202,8 +202,8 @@
 }
 
 .save-button:disabled {
-  background-color: #333;
-  color: #999;
+  background-color: var(--nb-border);
+  color: var(--nb-text-muted);
   cursor: not-allowed;
 }
 
@@ -214,19 +214,19 @@
   font-weight: 500;
   transition: all 0.2s ease;
   cursor: pointer;
-  background-color: #2d2d2d;
-  color: #e0e0e0;
-  border: 1px solid #444;
+  background-color: var(--nb-surface-strong);
+  color: var(--nb-text);
+  border: 1px solid var(--nb-border-strong);
 }
 
 .add-button:hover {
-  background-color: #3d3d3d;
-  border-color: #555;
+  background-color: var(--nb-hover);
+  border-color: var(--nb-border-strong);
 }
 
 .mcp-server-section {
   padding: 12px;
-  border: 1px solid #333;
+  border: 1px solid var(--nb-border);
   border-radius: 6px;
   margin-bottom: 12px;
 }
@@ -242,7 +242,7 @@
 .loading-message {
   text-align: center;
   padding: 40px 0;
-  color: #999;
+  color: var(--nb-text-muted);
   font-size: 14px;
 }
 
@@ -312,14 +312,14 @@
 }
 
 .config-page::-webkit-scrollbar-track {
-  background: #1f1f1f;
+  background: var(--nb-panel);
 }
 
 .config-page::-webkit-scrollbar-thumb {
-  background: #333;
+  background: var(--nb-border);
   border-radius: 3px;
 }
 
 .config-page::-webkit-scrollbar-thumb:hover {
-  background: #444;
+  background: var(--nb-border-strong);
 }

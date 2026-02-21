@@ -75,7 +75,9 @@
   "layout": {
     "chat": "Chat",
     "config": "Config",
-    "system": "System"
+    "system": "System",
+    "darkMode": "Dark Mode",
+    "lightMode": "Light Mode"
   },
   "system": {
     "health": "Health",
