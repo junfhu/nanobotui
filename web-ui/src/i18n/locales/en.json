@@ -76,7 +76,14 @@
     "backupSuccess": "Backup saved: {{filename}}",
     "restoreSuccess": "Restored from: {{filename}}",
     "backupFailed": "Backup failed",
-    "restoreFailed": "Restore failed"
+    "restoreFailed": "Restore failed",
+    "restartPrompt": "Configuration changed. You need to restart nanobot-web/main.py now. Restart now?",
+    "restartStarted": "Restart started. The page will reload shortly.",
+    "restartFailed": "Failed to restart backend",
+    "restarting": "Restarting...",
+    "restartSkippedNotice": "Restart skipped. New configuration is not active yet.",
+    "restartRequiredBanner": "Configuration saved, but it is not active until nanobot-web/main.py is restarted.",
+    "restartNow": "Restart Now"
   },
   "layout": {
     "chat": "Chat",

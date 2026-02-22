@@ -1524,6 +1524,28 @@ async def get_status_v1():
     }
 
 
+@app.post("/api/v1/system/restart-web")
+async def restart_web_backend():
+    """Restart current nanobot-web/main.py process."""
+    script_path = str(Path(__file__).resolve())
+
+    async def _restart_later() -> None:
+        await asyncio.sleep(0.8)
+        try:
+            os.chdir(str(Path(script_path).parent))
+        except Exception:
+            pass
+        logger.warning("Restarting nanobot-web via {}", script_path)
+        os.execv(sys.executable, [sys.executable, script_path])
+
+    asyncio.create_task(_restart_later())
+    return {
+        "success": True,
+        "data": {"message": "Restart scheduled"},
+        "error": None,
+    }
+
+
 @app.get("/api/status")
 async def get_status():
     """Status endpoint."""

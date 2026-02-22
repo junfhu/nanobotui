@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useConfigStore } from '../store'
+import { api } from '../api'
 import './ConfigPage.css'
 
 const ConfigPage = () => {
@@ -17,6 +18,8 @@ const ConfigPage = () => {
   const [localConfig, setLocalConfig] = useState(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [actionMessage, setActionMessage] = useState(null)
+  const [restarting, setRestarting] = useState(false)
+  const [restartRequired, setRestartRequired] = useState(false)
   const restoreFileInputRef = useRef(null)
 
   // Load config on mount
@@ -62,9 +65,32 @@ const ConfigPage = () => {
       setActionMessage({ type: 'success', text: t('config.saveSuccess') })
       setSaveSuccess(true)
       setTimeout(() => setSaveSuccess(false), 3000)
+      setRestartRequired(true)
+      await promptAndRestartWeb()
     } catch (error) {
       setActionMessage({ type: 'error', text: error.message || t('config.saveError') })
       console.error(t('configPage.saveErrorLog'), error)
+    }
+  }
+
+  const promptAndRestartWeb = async () => {
+    const shouldRestart = window.confirm(t('configPage.restartPrompt'))
+    if (!shouldRestart) {
+      setActionMessage({ type: 'error', text: t('configPage.restartSkippedNotice') })
+      return
+    }
+    setRestarting(true)
+    try {
+      await api.restartWebBackend()
+      setRestartRequired(false)
+      setActionMessage({ type: 'success', text: t('configPage.restartStarted') })
+      setTimeout(() => {
+        window.location.reload()
+      }, 2500)
+    } catch (err) {
+      setActionMessage({ type: 'error', text: err.message || t('configPage.restartFailed') })
+    } finally {
+      setRestarting(false)
     }
   }
 
@@ -100,10 +126,12 @@ const ConfigPage = () => {
       const restoredConfig = JSON.parse(text)
       await saveConfig(restoredConfig)
       setLocalConfig(JSON.parse(JSON.stringify(restoredConfig)))
+      setRestartRequired(true)
       setActionMessage({
         type: 'success',
         text: t('configPage.restoreSuccess', { filename: file.name }),
       })
+      await promptAndRestartWeb()
     } catch (err) {
       setActionMessage({ type: 'error', text: err.message || t('configPage.restoreFailed') })
     } finally {
@@ -593,6 +621,20 @@ const ConfigPage = () => {
               {actionMessage?.text || t('config.saveSuccess')}
             </div>
           )}
+          {restartRequired && (
+            <div className="error-message-inline" style={{ marginBottom: 12 }}>
+              {t('configPage.restartRequiredBanner')}
+              <button
+                onClick={promptAndRestartWeb}
+                disabled={restarting}
+                className="add-button"
+                type="button"
+                style={{ marginLeft: 10 }}
+              >
+                {t('configPage.restartNow')}
+              </button>
+            </div>
+          )}
           <div className="backup-restore-container">
             <div className="backup-restore-buttons">
               <button
@@ -622,12 +664,12 @@ const ConfigPage = () => {
           </div>
           {renderTabContent()}
           <div className="button-container">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="save-button"
-            >
-              {saving ? t('configPage.saving') : t('configPage.saveConfig')}
+              <button
+                onClick={handleSave}
+                disabled={saving || restarting}
+                className="save-button"
+              >
+              {saving ? t('configPage.saving') : restarting ? t('configPage.restarting') : t('configPage.saveConfig')}
             </button>
           </div>
         </div>

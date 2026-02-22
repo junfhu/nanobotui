@@ -234,6 +234,11 @@ export const api = {
   // Status
   getStatus: () => request('/status'),
 
+  restartWebBackend: () =>
+    request('/system/restart-web', {
+      method: 'POST',
+    }),
+
   // Save full config
   saveConfig: (config) =>
     request('/config', {

@@ -76,7 +76,14 @@
     "backupSuccess": "备份已保存：{{filename}}",
     "restoreSuccess": "已从备份恢复：{{filename}}",
     "backupFailed": "备份失败",
-    "restoreFailed": "恢复失败"
+    "restoreFailed": "恢复失败",
+    "restartPrompt": "配置已变更，需要重启 nanobot-web/main.py 才会生效。是否立即重启？",
+    "restartStarted": "已开始重启，页面将自动刷新。",
+    "restartFailed": "重启后端失败",
+    "restarting": "重启中...",
+    "restartSkippedNotice": "已跳过重启，当前新配置尚未生效。",
+    "restartRequiredBanner": "配置已保存，但尚未生效，请重启 nanobot-web/main.py。",
+    "restartNow": "立即重启"
   },
   "layout": {
     "chat": "聊天",
