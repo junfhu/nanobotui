@@ -6,6 +6,11 @@ import socket
 import subprocess
 import asyncio
 import re
+import sqlite3
+import hashlib
+import hmac
+import secrets
+import base64
 from pathlib import Path
 
 # Resolve nanobot project path dynamically (override with NANOBOT_PATH env if needed)
@@ -15,7 +20,7 @@ if str(NANOBOT_PATH) not in sys.path:
     sys.path.insert(0, str(NANOBOT_PATH))
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Query, Body
+from fastapi import FastAPI, HTTPException, Query, Body, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 import json
@@ -43,6 +48,8 @@ gateway_process: subprocess.Popen | None = None
 cron_service: CronService | None = None
 WEB_BACKEND_REVISION = "reminder-fix-v3-2026-02-22"
 session_event_subscribers: dict[str, set[asyncio.Queue]] = defaultdict(set)
+DEFAULT_ADMIN_USERNAME = "admin"
+DEFAULT_ADMIN_PASSWORD = "Password123!"
 
 
 def _env_enabled(name: str, default: str = "false") -> bool:
@@ -236,6 +243,105 @@ SESSIONS_DIR = DATA_DIR / "sessions"
 CONFIG_DIR = Path.home() / ".nanobot"
 CONFIG_PATH = CONFIG_DIR / "config.json"
 CONFIG_BACKUP_DIR = CONFIG_DIR / "config_backups"
+AUTH_DB_PATH = DATA_DIR / "auth.db"
+
+
+def _auth_conn() -> sqlite3.Connection:
+    conn = sqlite3.connect(str(AUTH_DB_PATH))
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def _hash_password(password: str, salt_b64: str | None = None) -> tuple[str, str]:
+    salt = base64.b64decode(salt_b64) if salt_b64 else secrets.token_bytes(16)
+    dk = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 240000)
+    return base64.b64encode(salt).decode("utf-8"), base64.b64encode(dk).decode("utf-8")
+
+
+def _verify_password(password: str, salt_b64: str, pw_hash_b64: str) -> bool:
+    _, calc_hash = _hash_password(password, salt_b64)
+    return hmac.compare_digest(calc_hash, pw_hash_b64)
+
+
+def init_auth_db() -> None:
+    AUTH_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    now = datetime.now().isoformat()
+    with _auth_conn() as conn:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                salt TEXT NOT NULL,
+                password_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS auth_tokens (
+                token TEXT PRIMARY KEY,
+                user_id INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+            """
+        )
+        row = conn.execute(
+            "SELECT id FROM users WHERE username = ?",
+            (DEFAULT_ADMIN_USERNAME,),
+        ).fetchone()
+        if row is None:
+            salt_b64, pw_hash_b64 = _hash_password(DEFAULT_ADMIN_PASSWORD)
+            conn.execute(
+                """
+                INSERT INTO users(username, salt, password_hash, created_at, updated_at)
+                VALUES(?, ?, ?, ?, ?)
+                """,
+                (DEFAULT_ADMIN_USERNAME, salt_b64, pw_hash_b64, now, now),
+            )
+            logger.info("Initialized default admin user in auth database")
+
+
+def _create_token(user_id: int) -> str:
+    token = secrets.token_urlsafe(32)
+    with _auth_conn() as conn:
+        conn.execute(
+            "INSERT INTO auth_tokens(token, user_id, created_at) VALUES(?, ?, ?)",
+            (token, user_id, datetime.now().isoformat()),
+        )
+    return token
+
+
+def _resolve_user_from_token(token: str | None) -> dict | None:
+    if not token:
+        return None
+    with _auth_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT u.id, u.username
+            FROM auth_tokens t
+            JOIN users u ON u.id = t.user_id
+            WHERE t.token = ?
+            """,
+            (token,),
+        ).fetchone()
+    if not row:
+        return None
+    return {"id": row["id"], "username": row["username"], "token": token}
+
+
+def _extract_token_from_request(request: Request) -> str | None:
+    auth = request.headers.get("Authorization", "")
+    if auth.lower().startswith("bearer "):
+        token = auth[7:].strip()
+        if token:
+            return token
+    # EventSource does not support custom headers, allow query token as fallback.
+    token_q = request.query_params.get("token", "").strip()
+    return token_q or None
 
 
 def _normalize_backup_filename(name: str) -> str:
@@ -351,6 +457,7 @@ async def lifespan(app: FastAPI):
     _start_gateway_if_needed()
     # Create data directories if they don't exist
     SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
+    init_auth_db()
     # Initialize nanobot
     await init_nanobot()
     if NANOBOT_AVAILABLE:
@@ -383,6 +490,30 @@ app.add_middleware(
 )
 
 
+AUTH_EXEMPT_PATHS = {
+    "/api/v1/auth/login",
+}
+
+
+@app.middleware("http")
+async def auth_middleware(request: Request, call_next):
+    path = request.url.path
+    if path.startswith("/api/v1") and path not in AUTH_EXEMPT_PATHS:
+        token = _extract_token_from_request(request)
+        user = _resolve_user_from_token(token)
+        if not user:
+            return JSONResponse(
+                status_code=401,
+                content={
+                    "success": False,
+                    "data": None,
+                    "error": {"code": "UNAUTHORIZED", "message": "Authentication required"},
+                },
+            )
+        request.state.user = user
+    return await call_next(request)
+
+
 @app.get("/")
 async def root():
     """Root endpoint."""
@@ -397,6 +528,118 @@ async def health_check():
         "nanobot_available": NANOBOT_AVAILABLE,
         "mode": "limited - basic API endpoints available",
         "revision": WEB_BACKEND_REVISION,
+    }
+
+
+@app.post("/api/v1/auth/login")
+async def login(payload: dict = Body(...)):
+    username = (payload.get("username") or "").strip()
+    password = payload.get("password") or ""
+    if not username or not password:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "success": False,
+                "data": None,
+                "error": {"code": "BAD_REQUEST", "message": "username and password are required"},
+            },
+        )
+
+    with _auth_conn() as conn:
+        row = conn.execute(
+            "SELECT id, username, salt, password_hash FROM users WHERE username = ?",
+            (username,),
+        ).fetchone()
+    if not row or not _verify_password(password, row["salt"], row["password_hash"]):
+        return JSONResponse(
+            status_code=401,
+            content={
+                "success": False,
+                "data": None,
+                "error": {"code": "INVALID_CREDENTIALS", "message": "Invalid username or password"},
+            },
+        )
+
+    token = _create_token(row["id"])
+    return {
+        "success": True,
+        "data": {
+            "token": token,
+            "user": {"id": row["id"], "username": row["username"]},
+        },
+        "error": None,
+    }
+
+
+@app.get("/api/v1/auth/me")
+async def auth_me(request: Request):
+    user = getattr(request.state, "user", None)
+    return {
+        "success": True,
+        "data": {"user": {"id": user["id"], "username": user["username"]}},
+        "error": None,
+    }
+
+
+@app.post("/api/v1/auth/logout")
+async def auth_logout(request: Request):
+    user = getattr(request.state, "user", None)
+    token = user.get("token") if user else None
+    if token:
+        with _auth_conn() as conn:
+            conn.execute("DELETE FROM auth_tokens WHERE token = ?", (token,))
+    return {"success": True, "data": {"message": "Logged out"}, "error": None}
+
+
+@app.post("/api/v1/auth/change-password")
+async def change_password(request: Request, payload: dict = Body(...)):
+    user = getattr(request.state, "user", None)
+    old_password = payload.get("oldPassword") or ""
+    new_password = payload.get("newPassword") or ""
+    if not old_password or not new_password:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "success": False,
+                "data": None,
+                "error": {"code": "BAD_REQUEST", "message": "oldPassword and newPassword are required"},
+            },
+        )
+    if len(new_password) < 8:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "success": False,
+                "data": None,
+                "error": {"code": "WEAK_PASSWORD", "message": "newPassword must be at least 8 characters"},
+            },
+        )
+
+    with _auth_conn() as conn:
+        row = conn.execute(
+            "SELECT id, salt, password_hash FROM users WHERE id = ?",
+            (user["id"],),
+        ).fetchone()
+        if not row or not _verify_password(old_password, row["salt"], row["password_hash"]):
+            return JSONResponse(
+                status_code=401,
+                content={
+                    "success": False,
+                    "data": None,
+                    "error": {"code": "INVALID_CREDENTIALS", "message": "Old password is incorrect"},
+                },
+            )
+
+        salt_b64, pw_hash_b64 = _hash_password(new_password)
+        conn.execute(
+            "UPDATE users SET salt = ?, password_hash = ?, updated_at = ? WHERE id = ?",
+            (salt_b64, pw_hash_b64, datetime.now().isoformat(), user["id"]),
+        )
+
+    return {
+        "success": True,
+        "data": {"message": "Password updated"},
+        "error": None,
     }
 
 

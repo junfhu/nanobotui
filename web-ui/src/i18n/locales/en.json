@@ -83,7 +83,22 @@
     "config": "Config",
     "system": "System",
     "darkMode": "Dark Mode",
-    "lightMode": "Light Mode"
+    "lightMode": "Light Mode",
+    "changePassword": "Change Password",
+    "logout": "Logout"
+  },
+  "auth": {
+    "username": "Username",
+    "password": "Password",
+    "signIn": "Sign In",
+    "changePasswordTitle": "Change Password",
+    "oldPassword": "Old password",
+    "newPassword": "New password",
+    "confirmNewPassword": "Confirm new password",
+    "fillOldNewPassword": "Please fill old/new password",
+    "passwordMismatch": "New passwords do not match",
+    "passwordUpdated": "Password updated",
+    "changePasswordFailed": "Failed to change password"
   },
   "system": {
     "health": "Health",

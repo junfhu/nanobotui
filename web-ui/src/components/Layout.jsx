@@ -1,15 +1,22 @@
 import React from 'react'
 import { Outlet, NavLink } from 'react-router-dom'
-import { Layout as AntLayout, Button, Dropdown } from 'antd'
-import { GlobalOutlined, MoonOutlined, SunOutlined } from '@ant-design/icons'
+import { Layout as AntLayout, Button, Dropdown, Modal, Input, message, Typography } from 'antd'
+import { GlobalOutlined, MoonOutlined, SunOutlined, LogoutOutlined, KeyOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
+import { api } from '../api'
 import './Layout.css'
 
 const { Sider, Content } = AntLayout
+const { Text } = Typography
 
-const Layout = ({ themeMode = 'dark', onToggleTheme }) => {
+const Layout = ({ themeMode = 'dark', onToggleTheme, onLogout, user }) => {
   const { t, i18n } = useTranslation()
   const isDark = themeMode === 'dark'
+  const [openChangePwd, setOpenChangePwd] = React.useState(false)
+  const [oldPassword, setOldPassword] = React.useState('')
+  const [newPassword, setNewPassword] = React.useState('')
+  const [confirmPassword, setConfirmPassword] = React.useState('')
+  const [savingPwd, setSavingPwd] = React.useState(false)
 
   const langMenuItems = [
     {
@@ -23,6 +30,30 @@ const Layout = ({ themeMode = 'dark', onToggleTheme }) => {
       onClick: () => i18n.changeLanguage('en'),
     },
   ]
+
+  const submitChangePassword = async () => {
+    if (!oldPassword || !newPassword) {
+      message.error(t('auth.fillOldNewPassword'))
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      message.error(t('auth.passwordMismatch'))
+      return
+    }
+    setSavingPwd(true)
+    try {
+      await api.changePassword(oldPassword, newPassword)
+      message.success(t('auth.passwordUpdated'))
+      setOpenChangePwd(false)
+      setOldPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+    } catch (e) {
+      message.error(e?.message || t('auth.changePasswordFailed'))
+    } finally {
+      setSavingPwd(false)
+    }
+  }
 
   return (
     <AntLayout className={`layout ${isDark ? 'theme-dark' : 'theme-light'}`}>
@@ -42,6 +73,9 @@ const Layout = ({ themeMode = 'dark', onToggleTheme }) => {
           </NavLink>
         </div>
         <div className="sidebar-footer">
+          <Text type="secondary" style={{ display: 'block', marginBottom: 8 }}>
+            {user?.username ? `@${user.username}` : ''}
+          </Text>
           <Button
             type="text"
             onClick={onToggleTheme}
@@ -55,11 +89,52 @@ const Layout = ({ themeMode = 'dark', onToggleTheme }) => {
               {i18n.language === 'zh-CN' ? '中文' : 'English'}
             </Button>
           </Dropdown>
+          <Button
+            type="text"
+            icon={<KeyOutlined />}
+            className="theme-switcher"
+            onClick={() => setOpenChangePwd(true)}
+          >
+            {t('layout.changePassword')}
+          </Button>
+          <Button
+            type="text"
+            icon={<LogoutOutlined />}
+            className="theme-switcher"
+            onClick={onLogout}
+          >
+            {t('layout.logout')}
+          </Button>
         </div>
       </Sider>
       <Content className="main-content">
         <Outlet context={{ themeMode }} />
       </Content>
+      <Modal
+        title={t('auth.changePasswordTitle')}
+        open={openChangePwd}
+        onCancel={() => setOpenChangePwd(false)}
+        onOk={submitChangePassword}
+        okButtonProps={{ loading: savingPwd }}
+      >
+        <Input.Password
+          value={oldPassword}
+          onChange={(e) => setOldPassword(e.target.value)}
+          placeholder={t('auth.oldPassword')}
+          style={{ marginBottom: 10 }}
+        />
+        <Input.Password
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
+          placeholder={t('auth.newPassword')}
+          style={{ marginBottom: 10 }}
+        />
+        <Input.Password
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          placeholder={t('auth.confirmNewPassword')}
+        />
+      </Modal>
     </AntLayout>
   )
 }

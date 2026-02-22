@@ -1,12 +1,38 @@
 import i18n from './i18n'
 
-const API_BASE = 'http://localhost:8080/api/v1'
+const API_BASE = import.meta.env.VITE_API_BASE || '/api/v1'
+const AUTH_TOKEN_KEY = 'nanobot-auth-token'
+const AUTH_USER_KEY = 'nanobot-auth-user'
+
+export const authStorage = {
+  getToken: () => localStorage.getItem(AUTH_TOKEN_KEY) || '',
+  setToken: (token) => localStorage.setItem(AUTH_TOKEN_KEY, token),
+  clearToken: () => localStorage.removeItem(AUTH_TOKEN_KEY),
+  getUser: () => {
+    try {
+      const raw = localStorage.getItem(AUTH_USER_KEY)
+      return raw ? JSON.parse(raw) : null
+    } catch {
+      return null
+    }
+  },
+  setUser: (user) => localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user || null)),
+  clearUser: () => localStorage.removeItem(AUTH_USER_KEY),
+  clearAll: () => {
+    localStorage.removeItem(AUTH_TOKEN_KEY)
+    localStorage.removeItem(AUTH_USER_KEY)
+  }
+}
 
 async function request(path, options = {}) {
   const { skipJsonContentType, ...fetchOptions } = options
-  const headers = skipJsonContentType 
+  const token = authStorage.getToken()
+  const headers = skipJsonContentType
     ? { ...(fetchOptions.headers || {}) }
     : { 'Content-Type': 'application/json', ...(fetchOptions.headers || {}) }
+  if (token) {
+    headers.Authorization = `Bearer ${token}`
+  }
   
   const response = await fetch(`${API_BASE}${path}`, {
     ...fetchOptions,
@@ -74,9 +100,14 @@ export const api = {
     }),
 
   sendMessageStream: async (sessionId, content, { onProgress, onAck, signal } = {}) => {
+    const token = authStorage.getToken()
+    const headers = { 'Content-Type': 'application/json' }
+    if (token) {
+      headers.Authorization = `Bearer ${token}`
+    }
     const response = await fetch(`${API_BASE}/chat/sessions/${sessionId}/messages/stream`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ content }),
       signal,
     })
@@ -137,7 +168,9 @@ export const api = {
   },
 
   subscribeSessionEvents: (sessionId, { onMessage, onError } = {}) => {
-    const source = new EventSource(`${API_BASE}/chat/sessions/${sessionId}/events/stream`)
+    const token = authStorage.getToken()
+    const qs = token ? `?token=${encodeURIComponent(token)}` : ''
+    const source = new EventSource(`${API_BASE}/chat/sessions/${sessionId}/events/stream${qs}`)
 
     source.onmessage = (event) => {
       try {
@@ -154,6 +187,22 @@ export const api = {
 
     return source
   },
+
+  login: (username, password) =>
+    request('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    }),
+
+  me: () => request('/auth/me'),
+
+  logout: () => request('/auth/logout', { method: 'POST' }),
+
+  changePassword: (oldPassword, newPassword) =>
+    request('/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({ oldPassword, newPassword }),
+    }),
 
   // Configuration
   getConfig: () => request('/config'),

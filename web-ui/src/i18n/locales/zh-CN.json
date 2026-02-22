@@ -83,7 +83,22 @@
     "config": "配置",
     "system": "系统",
     "darkMode": "夜间模式",
-    "lightMode": "日间模式"
+    "lightMode": "日间模式",
+    "changePassword": "修改密码",
+    "logout": "退出登录"
+  },
+  "auth": {
+    "username": "用户名",
+    "password": "密码",
+    "signIn": "登录",
+    "changePasswordTitle": "修改密码",
+    "oldPassword": "旧密码",
+    "newPassword": "新密码",
+    "confirmNewPassword": "确认新密码",
+    "fillOldNewPassword": "请填写旧密码和新密码",
+    "passwordMismatch": "两次新密码不一致",
+    "passwordUpdated": "密码已更新",
+    "changePasswordFailed": "修改密码失败"
   },
   "system": {
     "health": "健康状态",
