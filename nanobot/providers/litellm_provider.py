@@ -1,4 +1,21 @@
 """LiteLLM provider implementation for multi-provider support."""
+import ssl
+import urllib3
+# 禁用所有 urllib3 的 SSL 警告
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+_original_create_default_context = ssl.create_default_context
+
+# 全局创建不验证的SSL上下文
+def create_unsafe_context(*args, **kwargs):
+    # 调用原始方法创建上下文
+    context = _original_create_default_context(*args, **kwargs)
+    # 禁用验证
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+    return context
+
+# 替换全局方法
+ssl.create_default_context = create_unsafe_context
 
 import json
 import json_repair

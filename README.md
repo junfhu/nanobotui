@@ -4,7 +4,7 @@ A lightweight web companion for **Nanobot**.
 
 ## What This Project Is
 
-This project is built for **Nanobot users** to reduce configuration complexity and provide a simpler web-based setup/chat workflow. Please check https://github.com/hKUDS/nanobot for Nanobot introduction and installation.
+This project is for **Nanobot users**. Its core goal is to reduce configuration complexity and provide a more intuitive web entry for configuration and chat. For Nanobot introduction and installation, please refer to https://github.com/hKUDS/nanobot. This repository mainly keeps and adapts the original code.
 
 ## Important Notes
 
@@ -18,8 +18,8 @@ This project is built for **Nanobot users** to reduce configuration complexity a
 ## Quick Start
 
 Prerequisites:
-- Python 3.11+
-- Node.js 18+
+- Python 3.12
+- Node.js 22
 
 Install:
 ```bash

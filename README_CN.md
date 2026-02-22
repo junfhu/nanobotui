@@ -19,8 +19,8 @@
 ## 快速启动
 
 前置要求：
-- Python 3.11+
-- Node.js 18+
+- Python 3.12
+- Node.js 22
 
 安装依赖：
 ```bash

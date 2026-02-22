@@ -8,8 +8,9 @@ import asyncio
 import re
 from pathlib import Path
 
-# Add nanobot to path
-NANOBOT_PATH = Path("/mnt/d/AI/nanobot")
+# Resolve nanobot project path dynamically (override with NANOBOT_PATH env if needed)
+DEFAULT_NANOBOT_PATH = Path(__file__).resolve().parent.parent
+NANOBOT_PATH = Path(os.environ.get("NANOBOT_PATH", str(DEFAULT_NANOBOT_PATH))).expanduser().resolve()
 if str(NANOBOT_PATH) not in sys.path:
     sys.path.insert(0, str(NANOBOT_PATH))
 
@@ -77,12 +78,13 @@ def _start_gateway_if_needed() -> None:
 
     cmd = [sys.executable, "-m", "nanobot", "gateway", "--port", str(port)]
     try:
-        gateway_process = subprocess.Popen(
-            cmd,
-            cwd=str(NANOBOT_PATH),
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        popen_kwargs = {
+            "stdout": subprocess.DEVNULL,
+            "stderr": subprocess.DEVNULL,
+        }
+        if NANOBOT_PATH.exists():
+            popen_kwargs["cwd"] = str(NANOBOT_PATH)
+        gateway_process = subprocess.Popen(cmd, **popen_kwargs)
         logger.info("Auto-started nanobot gateway (pid={}, port={})", gateway_process.pid, port)
     except Exception as e:
         logger.error("Failed to auto-start nanobot gateway: {}", e)
