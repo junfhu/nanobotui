@@ -43,6 +43,10 @@ npm --prefix web-ui run dev
 浏览器访问：
 - `http://localhost:5173`
 
+默认登录账号：
+- 用户名：`admin`
+- 密码：`Password123!`
+
 ## 兼容性说明
 
 - Nanobot 可以独立更新。

@@ -9,7 +9,7 @@ const { Title, Text } = Typography
 const LoginPage = ({ onLogin }) => {
   const { t } = useTranslation()
   const [username, setUsername] = useState('admin')
-  const [password, setPassword] = useState('Password123!')
+  const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 

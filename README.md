@@ -42,6 +42,10 @@ Frontend: `http://localhost:5173`
 Open in browser:
 - `http://localhost:5173`
 
+Default login credentials:
+- Username: `admin`
+- Password: `Password123!`
+
 ## Compatibility
 
 - Nanobot can be upgraded independently.
