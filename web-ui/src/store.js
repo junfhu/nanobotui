@@ -117,6 +117,52 @@ export const useMessageStore = create((set, get) => ({
       set({ error: error.message, loading: false })
     }
   },
+
+  // Refresh messages silently (used for background updates like cron reminders)
+  refreshMessages: async (sessionId) => {
+    try {
+      const messages = await api.getMessages(sessionId)
+      set((state) => {
+        if (state.sending) {
+          return {}
+        }
+        const currentLastId = state.messages[state.messages.length - 1]?.id
+        const incomingLastId = messages[messages.length - 1]?.id
+        if (state.messages.length === messages.length && currentLastId === incomingLastId) {
+          return {}
+        }
+        return { messages }
+      })
+    } catch {
+      // Ignore background refresh errors to avoid noisy UI.
+    }
+  },
+
+  appendIncomingMessage: (incoming) => {
+    if (!incoming?.id) {
+      return
+    }
+    set((state) => {
+      if (state.messages.some((m) => m.id === incoming.id)) {
+        return {}
+      }
+      // Reconcile optimistic user message with persisted one from SSE.
+      if (incoming.role === 'user') {
+        const tempIdx = state.messages.findIndex((m) =>
+          m.id?.startsWith('temp-user-') &&
+          m.role === 'user' &&
+          m.sessionId === incoming.sessionId &&
+          m.content === incoming.content
+        )
+        if (tempIdx !== -1) {
+          const next = [...state.messages]
+          next[tempIdx] = incoming
+          return { messages: next }
+        }
+      }
+      return { messages: [...state.messages, incoming] }
+    })
+  },
   
   // Send message
   sendMessage: async (sessionId, content) => {
@@ -125,8 +171,9 @@ export const useMessageStore = create((set, get) => ({
     }
 
     const currentMessages = get().messages
+    const tempUserId = `temp-user-${Date.now()}`
     const tempUserMessage = {
-      id: `temp-user-${Date.now()}`,
+      id: tempUserId,
       sessionId,
       role: 'user',
       content,
@@ -151,15 +198,35 @@ export const useMessageStore = create((set, get) => ({
         signal: controller.signal,
         onProgress: (text) => {
           set({ progress: text || '' })
-        }
+        },
+        onAck: (userMessage) => {
+          if (!userMessage?.id) return
+          set((state) => {
+            if (state.messages.some((m) => m.id === userMessage.id)) {
+              return {}
+            }
+            const tempIdx = state.messages.findIndex((m) => m.id === tempUserId)
+            if (tempIdx === -1) {
+              return { messages: [...state.messages, userMessage] }
+            }
+            const next = [...state.messages]
+            next[tempIdx] = userMessage
+            return { messages: next }
+          })
+        },
       })
 
       const assistantMessage = response.assistantMessage
-      set((state) => ({
-        messages: [...state.messages, assistantMessage],
-        sending: false,
-        progress: ''
-      }))
+      set((state) => {
+        if (assistantMessage?.id && state.messages.some((m) => m.id === assistantMessage.id)) {
+          return { sending: false, progress: '' }
+        }
+        return {
+          messages: [...state.messages, assistantMessage],
+          sending: false,
+          progress: ''
+        }
+      })
       return response
     } catch (error) {
       if (error?.name === 'AbortError') {

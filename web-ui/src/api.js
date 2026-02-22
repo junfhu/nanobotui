@@ -136,6 +136,25 @@ export const api = {
     return finalData
   },
 
+  subscribeSessionEvents: (sessionId, { onMessage, onError } = {}) => {
+    const source = new EventSource(`${API_BASE}/chat/sessions/${sessionId}/events/stream`)
+
+    source.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data)
+        if (onMessage) onMessage(payload)
+      } catch {
+        // Ignore malformed SSE payloads.
+      }
+    }
+
+    source.onerror = (err) => {
+      if (onError) onError(err)
+    }
+
+    return source
+  },
+
   // Configuration
   getConfig: () => request('/config'),
 

@@ -21,21 +21,27 @@ import json
 import uuid
 from datetime import datetime
 from loguru import logger
+from collections import defaultdict
 
 # Import nanobot components
 from nanobot.bus.queue import MessageBus
 from nanobot.agent.loop import AgentLoop
 from nanobot.session.manager import SessionManager
-from nanobot.config.loader import load_config
+from nanobot.config.loader import load_config, get_data_dir
 from nanobot.providers.litellm_provider import LiteLLMProvider
 from nanobot.providers.openai_codex_provider import OpenAICodexProvider
 from nanobot.providers.custom_provider import CustomProvider
+from nanobot.cron.service import CronService
+from nanobot.cron.types import CronJob, CronSchedule
 
 # Global variables
 NANOBOT_AVAILABLE = False
 agent_loop = None
 message_bus = None
 gateway_process: subprocess.Popen | None = None
+cron_service: CronService | None = None
+WEB_BACKEND_REVISION = "reminder-fix-v3-2026-02-22"
+session_event_subscribers: dict[str, set[asyncio.Queue]] = defaultdict(set)
 
 
 def _env_enabled(name: str, default: str = "false") -> bool:
@@ -104,7 +110,7 @@ def _stop_gateway_if_started() -> None:
 
 async def init_nanobot():
     """Initialize nanobot components."""
-    global NANOBOT_AVAILABLE, agent_loop, message_bus
+    global NANOBOT_AVAILABLE, agent_loop, message_bus, cron_service
     
     try:
         logger.info("Initializing nanobot...")
@@ -118,6 +124,45 @@ async def init_nanobot():
         # Create session manager
         session_manager = SessionManager(config.workspace_path)
         
+        # Create cron service first; callback can run even when agent is unavailable.
+        cron_store_path = get_data_dir() / "cron" / "jobs.json"
+        cron_service = CronService(cron_store_path)
+
+        async def on_cron_job(job: CronJob) -> str | None:
+            """Execute scheduled jobs via agent and persist result for web sessions."""
+            # Simple web reminders should be delivered directly without LLM round-trip.
+            if (
+                job.payload.channel == "web"
+                and job.payload.to
+                and (
+                    job.name.startswith("web-reminder-")
+                    or (job.payload.message or "").startswith("提醒时间到：")
+                )
+            ):
+                add_message(job.payload.to, job.payload.message, "assistant")
+                logger.info("Cron web reminder delivered directly (no LLM): {}", job.id)
+                return job.payload.message
+
+            response = ""
+            if agent_loop is not None:
+                try:
+                    response = await agent_loop.process_direct(
+                        content=job.payload.message,
+                        session_key=f"cron:{job.id}",
+                        channel=job.payload.channel or "web",
+                        chat_id=job.payload.to or "web:default",
+                    ) or ""
+                except Exception as e:
+                    logger.warning("Cron agent execution failed for job {}: {}", job.id, e)
+
+            # Web UI has no channel dispatcher; always persist a visible message.
+            if job.payload.channel == "web" and job.payload.to:
+                add_message(job.payload.to, response or job.payload.message, "assistant")
+            return response or job.payload.message
+
+        cron_service.on_job = on_cron_job
+        await cron_service.start()
+
         # Get model from config
         model = config.agents.defaults.model
         
@@ -168,6 +213,7 @@ async def init_nanobot():
             max_tokens=config.agents.defaults.max_tokens,
             max_iterations=config.agents.defaults.max_tool_iterations,
             memory_window=config.agents.defaults.memory_window,
+            cron_service=cron_service,
         )
         
         # process_direct() handles web requests directly, no bus dispatcher required
@@ -208,6 +254,93 @@ def _normalize_backup_filename(name: str) -> str:
     return trimmed
 
 
+_CN_NUM = {
+    "零": 0, "一": 1, "二": 2, "两": 2, "三": 3, "四": 4,
+    "五": 5, "六": 6, "七": 7, "八": 8, "九": 9,
+}
+
+
+def _parse_zh_number(text: str) -> int | None:
+    text = (text or "").strip().replace("０", "0").replace("１", "1").replace("２", "2").replace("３", "3").replace("４", "4").replace("５", "5").replace("６", "6").replace("７", "7").replace("８", "8").replace("９", "9")
+    if not text:
+        return None
+    if text.isdigit():
+        return int(text)
+    if text in _CN_NUM:
+        return _CN_NUM[text]
+    if "百" in text:
+        left, _, right = text.partition("百")
+        hundreds = _CN_NUM.get(left, 1) if left else 1
+        tail = _parse_zh_number(right) if right else 0
+        if tail is None:
+            tail = 0
+        return hundreds * 100 + tail
+    if "十" in text:
+        left, _, right = text.partition("十")
+        tens = _CN_NUM.get(left, 1) if left else 1
+        ones = _CN_NUM.get(right, 0) if right else 0
+        return tens * 10 + ones
+    return None
+
+
+def _parse_relative_reminder_seconds(content: str) -> int | None:
+    """Parse simple reminder intents like '1分钟后提醒我' / '一分钟以后给我发消息'."""
+    text = (content or "").strip()
+    if not text:
+        return None
+
+    # Accept broad phrasing; only require "X分钟/秒" + "后/以后/之后".
+    if not re.search(r"(后|以后|之后)", text):
+        return None
+
+    m = re.search(r"([0-9０-９一二两三四五六七八九十百]+)\s*个?\s*(分钟|分|秒钟|秒)", text)
+    if not m:
+        return None
+
+    value = _parse_zh_number(m.group(1))
+    if value is None or value <= 0:
+        return None
+
+    unit = m.group(2)
+    if unit in {"分钟", "分"}:
+        return value * 60
+    if unit in {"秒钟", "秒"}:
+        return value
+    return None
+
+
+def _schedule_web_relative_reminder(session_id: str, content: str) -> str | None:
+    """Create a one-shot web reminder directly, returning assistant confirmation text."""
+    if cron_service is None:
+        return None
+
+    seconds = _parse_relative_reminder_seconds(content)
+    if not seconds:
+        return None
+
+    now_ms = int(datetime.now().timestamp() * 1000)
+    at_ms = now_ms + seconds * 1000
+    minutes = seconds // 60
+    if seconds % 60 == 0:
+        delay_text = f"{minutes} 分钟"
+    else:
+        delay_text = f"{seconds} 秒"
+
+    reminder_text = f"提醒时间到：这是你 {delay_text} 前设置的提醒。"
+    job = cron_service.add_job(
+        name=f"web-reminder-{seconds}s",
+        schedule=CronSchedule(kind="at", at_ms=at_ms),
+        message=reminder_text,
+        deliver=True,
+        channel="web",
+        to=session_id,
+        delete_after_run=True,
+    )
+    logger.info("Web reminder created: session={}, seconds={}, job={}", session_id, seconds, job.id)
+    run_at = _ms_to_iso(at_ms) or str(at_ms)
+    return f"[{WEB_BACKEND_REVISION}] 已设置提醒：我会在 {delay_text} 后给你发消息（job: {job.id}, at: {run_at}）。"
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifespan context manager for startup and shutdown events."""
@@ -226,6 +359,8 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
+    if cron_service:
+        cron_service.stop()
     _stop_gateway_if_started()
 
 
@@ -258,7 +393,8 @@ async def health_check():
     return {
         "status": "healthy",
         "nanobot_available": NANOBOT_AVAILABLE,
-        "mode": "limited - basic API endpoints available"
+        "mode": "limited - basic API endpoints available",
+        "revision": WEB_BACKEND_REVISION,
     }
 
 
@@ -351,6 +487,7 @@ def add_message(session_id: str, content: str, role: str = "user") -> dict:
     session_data['updatedAt'] = now
     session_data['lastMessageAt'] = now
     save_session(session_data)
+    _publish_session_event(session_id, {"type": "message", "message": message})
     return message
 
 async def generate_ai_response(content: str, session_id: str = "web:default") -> str:
@@ -377,6 +514,33 @@ async def generate_ai_response(content: str, session_id: str = "web:default") ->
 def _sse_event(data: dict) -> str:
     """Build one SSE data frame."""
     return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _publish_session_event(session_id: str, payload: dict) -> None:
+    """Push one event payload to SSE subscribers of a session."""
+    subscribers = session_event_subscribers.get(session_id)
+    if not subscribers:
+        return
+    dead: list[asyncio.Queue] = []
+    for q in list(subscribers):
+        try:
+            q.put_nowait(payload)
+        except Exception:
+            dead.append(q)
+    for q in dead:
+        subscribers.discard(q)
+    if not subscribers:
+        session_event_subscribers.pop(session_id, None)
+
+
+def _ms_to_iso(ms: int | None) -> str | None:
+    """Convert milliseconds timestamp to ISO datetime string."""
+    if not ms:
+        return None
+    try:
+        return datetime.fromtimestamp(ms / 1000).isoformat()
+    except Exception:
+        return None
 
 
 # Session endpoints
@@ -542,6 +706,49 @@ async def get_messages_endpoint(
         }
 
 
+@app.get("/api/v1/chat/sessions/{session_id}/events/stream")
+async def stream_session_events(session_id: str):
+    """SSE stream for real-time messages in a session."""
+    if not get_session(session_id):
+        return JSONResponse(
+            status_code=404,
+            content={
+                "success": False,
+                "data": None,
+                "error": {"code": "NOT_FOUND", "message": "Session not found"},
+            },
+        )
+
+    queue: asyncio.Queue[dict] = asyncio.Queue(maxsize=100)
+    session_event_subscribers[session_id].add(queue)
+
+    async def event_stream():
+        try:
+            yield _sse_event({"type": "connected", "sessionId": session_id})
+            while True:
+                try:
+                    item = await asyncio.wait_for(queue.get(), timeout=20.0)
+                    yield _sse_event(item)
+                except asyncio.TimeoutError:
+                    yield _sse_event({"type": "heartbeat"})
+        finally:
+            subscribers = session_event_subscribers.get(session_id)
+            if subscribers:
+                subscribers.discard(queue)
+                if not subscribers:
+                    session_event_subscribers.pop(session_id, None)
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @app.post("/api/v1/chat/sessions/{session_id}/messages")
 async def send_message_endpoint(session_id: str, body: dict = Body(...)):
     """Send message to session."""
@@ -549,6 +756,17 @@ async def send_message_endpoint(session_id: str, body: dict = Body(...)):
         content = body.get("content", "")
         # Add user message
         user_message = add_message(session_id, content, "user")
+        reminder_confirmation = _schedule_web_relative_reminder(session_id, content)
+        if reminder_confirmation:
+            ai_message = add_message(session_id, reminder_confirmation, "assistant")
+            return {
+                "success": True,
+                "data": {
+                    "content": reminder_confirmation,
+                    "assistantMessage": ai_message
+                },
+                "error": None
+            }
         # Generate AI response
         ai_response = await generate_ai_response(content, session_id)
         # Add AI message
@@ -588,6 +806,31 @@ async def send_message_stream_endpoint(session_id: str, body: dict = Body(...)):
 
     # Persist user message immediately.
     user_message = add_message(session_id, content, "user")
+
+    # Deterministic fallback for simple relative reminders in Web UI.
+    reminder_confirmation = _schedule_web_relative_reminder(session_id, content)
+    if reminder_confirmation:
+        ai_message = add_message(session_id, reminder_confirmation, "assistant")
+
+        async def quick_stream():
+            yield _sse_event({"type": "ack", "userMessage": user_message})
+            yield _sse_event(
+                {
+                    "type": "final",
+                    "content": reminder_confirmation,
+                    "assistantMessage": ai_message,
+                }
+            )
+
+        return StreamingResponse(
+            quick_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
     async def event_stream():
         queue: asyncio.Queue[dict | None] = asyncio.Queue()
@@ -917,6 +1160,105 @@ async def update_channels(channels: dict):
 
 
 # Status endpoints
+@app.get("/api/v1/build-info")
+async def get_build_info():
+    """Return backend build marker for debugging deployment/version mismatch."""
+    return {
+        "success": True,
+        "data": {
+            "service": "nanobot-web",
+            "revision": WEB_BACKEND_REVISION,
+        },
+        "error": None,
+    }
+
+
+@app.get("/api/v1/cron/jobs")
+async def get_cron_jobs(
+    include_disabled: bool = Query(True),
+    channel: str | None = Query(None),
+    to: str | None = Query(None),
+):
+    """List cron jobs for debugging reminders and schedules."""
+    try:
+        if cron_service is None:
+            return {
+                "success": True,
+                "data": {
+                    "enabled": False,
+                    "jobs": [],
+                    "count": 0,
+                },
+                "error": None,
+            }
+
+        status = cron_service.status()
+        jobs = cron_service.list_jobs(include_disabled=include_disabled)
+
+        if channel:
+            jobs = [j for j in jobs if (j.payload.channel or "") == channel]
+        if to:
+            jobs = [j for j in jobs if (j.payload.to or "") == to]
+
+        items = [
+            {
+                "id": j.id,
+                "name": j.name,
+                "enabled": j.enabled,
+                "deleteAfterRun": j.delete_after_run,
+                "schedule": {
+                    "kind": j.schedule.kind,
+                    "atMs": j.schedule.at_ms,
+                    "at": _ms_to_iso(j.schedule.at_ms),
+                    "everyMs": j.schedule.every_ms,
+                    "expr": j.schedule.expr,
+                    "tz": j.schedule.tz,
+                },
+                "payload": {
+                    "kind": j.payload.kind,
+                    "message": j.payload.message,
+                    "deliver": j.payload.deliver,
+                    "channel": j.payload.channel,
+                    "to": j.payload.to,
+                },
+                "state": {
+                    "nextRunAtMs": j.state.next_run_at_ms,
+                    "nextRunAt": _ms_to_iso(j.state.next_run_at_ms),
+                    "lastRunAtMs": j.state.last_run_at_ms,
+                    "lastRunAt": _ms_to_iso(j.state.last_run_at_ms),
+                    "lastStatus": j.state.last_status,
+                    "lastError": j.state.last_error,
+                },
+                "createdAtMs": j.created_at_ms,
+                "createdAt": _ms_to_iso(j.created_at_ms),
+                "updatedAtMs": j.updated_at_ms,
+                "updatedAt": _ms_to_iso(j.updated_at_ms),
+            }
+            for j in jobs
+        ]
+
+        return {
+            "success": True,
+            "data": {
+                "enabled": status.get("enabled", False),
+                "nextWakeAtMs": status.get("next_wake_at_ms"),
+                "nextWakeAt": _ms_to_iso(status.get("next_wake_at_ms")),
+                "count": len(items),
+                "jobs": items,
+            },
+            "error": None,
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "data": None,
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": str(e),
+            },
+        }
+
+
 @app.get("/api/v1/status")
 async def get_status_v1():
     """Status endpoint v1."""
@@ -926,6 +1268,7 @@ async def get_status_v1():
             "status": "running",
             "mode": "limited",
             "nanobot_available": NANOBOT_AVAILABLE,
+            "revision": WEB_BACKEND_REVISION,
             "services": {
                 "chat": "available",
                 "config": "available",

@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import { useSessionStore, useMessageStore } from '../store'
+import { api } from '../api'
 import 'highlight.js/styles/github-dark.css'
 import './ChatPage.css'
 
@@ -18,27 +19,28 @@ const ChatPage = () => {
   const { t } = useTranslation()
   const { themeMode = 'dark' } = useOutletContext() || {}
   const isDark = themeMode === 'dark'
-  const { 
-    sessions, 
-    currentSession, 
-    loading: sessionsLoading, 
+  const {
+    sessions,
+    currentSession,
+    loading: sessionsLoading,
     error: sessionsError,
-    loadSessions, 
-    createSession, 
-    deleteSession, 
-    renameSession, 
-    setCurrentSession 
+    loadSessions,
+    createSession,
+    deleteSession,
+    renameSession,
+    setCurrentSession
   } = useSessionStore()
-  const { 
-    messages, 
-    loading: messagesLoading, 
-    sending, 
+  const {
+    messages,
+    loading: messagesLoading,
+    sending,
     progress,
     error: messagesError,
-    loadMessages, 
-    sendMessage, 
+    loadMessages,
+    appendIncomingMessage,
+    sendMessage,
     stopMessage,
-    clearMessages 
+    clearMessages
   } = useMessageStore()
   const [inputMessage, setInputMessage] = useState('')
   const [showRenameModal, setShowRenameModal] = useState(false)
@@ -59,10 +61,26 @@ const ChatPage = () => {
     }
   }, [currentSession])
 
+  // Real-time session updates (e.g. cron reminders)
+  useEffect(() => {
+    if (!currentSession) return
+    const source = api.subscribeSessionEvents(currentSession.id, {
+      onMessage: (payload) => {
+        if (payload?.type === 'message' && payload.message) {
+          if (payload.message.sessionId === currentSession.id) {
+            appendIncomingMessage(payload.message)
+          }
+        }
+      }
+    })
+
+    return () => source.close()
+  }, [currentSession?.id])
+
   // Scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom()
-  }, [messages])
+  }, [messages, sending])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -163,6 +181,71 @@ const ChatPage = () => {
     },
   }), [isDark])
 
+  const renderedMessages = useMemo(() => (
+    <div className="messages-container">
+      {messages.map((msg) => (
+        <div
+          key={msg.id}
+          className={`message-wrapper ${msg.role}`}
+        >
+          <div className="message-bubble">
+            <div className="message-header">
+              <div className="message-author-row">
+                <Avatar
+                  icon={msg.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
+                  className={`message-avatar ${msg.role}`}
+                />
+                <Text strong className={`message-speaker ${msg.role}`}>
+                  {msg.role === 'user' ? t('chat.you') : t('chat.assistantName')}
+                </Text>
+              </div>
+              {msg.createdAt && (
+                <span className="message-time">{formatMessageTime(msg.createdAt)}</span>
+              )}
+            </div>
+            <div className="message-content">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeHighlight]}
+                className="markdown-body"
+              >
+                {msg.content}
+              </ReactMarkdown>
+            </div>
+          </div>
+        </div>
+      ))}
+      {sending && (
+        <div className="message-wrapper assistant">
+          <div className="message-bubble">
+            <div className="message-header">
+              <div className="message-author-row">
+                <Avatar icon={<RobotOutlined />} className="message-avatar assistant" />
+                <Text strong className="message-speaker assistant">
+                  {t('chat.assistantName')}
+                </Text>
+              </div>
+            </div>
+            <div className="message-content">
+              <div className="loading-text">
+                <div className="loading-status">
+                  <Spin size="small" />
+                  <span>{t('chat.thinking')}</span>
+                </div>
+                {progress && (
+                  <div className="loading-progress">
+                    {progress}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      <div ref={messagesEndRef} />
+    </div>
+  ), [messages, sending, progress, t])
+
   return (
     <ConfigProvider theme={antTheme}>
       <Layout className="chat-page">
@@ -262,64 +345,7 @@ const ChatPage = () => {
                 {messagesError}
               </div>
             ) : messages.length > 0 ? (
-              <div className="messages-container">
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`message-wrapper ${message.role}`}
-                  >
-                    <div className="message-bubble">
-                      <div className="message-inline">
-                        <Avatar
-                          icon={message.role === 'user' ? <UserOutlined /> : <RobotOutlined />}
-                          className={`message-avatar ${message.role}`}
-                        />
-                        <Text strong className={`message-speaker ${message.role}`}>
-                          {message.role === 'user' ? t('chat.you') : t('chat.assistantName')}:
-                        </Text>
-                        <div className="message-content message-inline-content">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            rehypePlugins={[rehypeHighlight]}
-                            className="markdown-body"
-                          >
-                            {message.content}
-                          </ReactMarkdown>
-                        </div>
-                        {message.createdAt && (
-                          <span className="message-time">{formatMessageTime(message.createdAt)}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                {sending && (
-                  <div className="message-wrapper assistant">
-                    <div className="message-bubble">
-                      <div className="message-inline">
-                        <Avatar icon={<RobotOutlined />} className="message-avatar assistant" />
-                        <Text strong className="message-speaker assistant">
-                          {t('chat.assistantName')}:
-                        </Text>
-                        <div className="message-content message-inline-content">
-                          <div className="loading-text">
-                            <div className="loading-status">
-                              <Spin size="small" />
-                              <span>{t('chat.thinking')}</span>
-                            </div>
-                            {progress && (
-                              <div className="loading-progress">
-                                {progress}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div ref={messagesEndRef} />
-              </div>
+              renderedMessages
             ) : (
               <div className="empty-chat">
                 <Empty
