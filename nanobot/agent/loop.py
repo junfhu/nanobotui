@@ -1,4 +1,4 @@
-"""Agent loop: the core processing engine."""
+﻿"""Agent loop: the core processing engine."""
 
 import asyncio
 from contextlib import AsyncExitStack
@@ -150,7 +150,7 @@ class AgentLoop:
 
     @staticmethod
     def _strip_think(text: str | None) -> str | None:
-        """Remove <think>…</think> blocks that some models embed in content."""
+        """Remove <think>鈥?/think> blocks that some models embed in content."""
         if not text:
             return None
         return re.sub(r"<think>[\s\S]*?</think>", "", text).strip() or None
@@ -162,7 +162,7 @@ class AgentLoop:
             val = next(iter(tc.arguments.values()), None) if tc.arguments else None
             if not isinstance(val, str):
                 return tc.name
-            return f'{tc.name}("{val[:40]}…")' if len(val) > 40 else f'{tc.name}("{val}")'
+            return f'{tc.name}("{val[:40]}鈥?)' if len(val) > 40 else f'{tc.name}("{val}")'
         return ", ".join(_fmt(tc) for tc in tool_calls)
 
     async def _run_agent_loop(
@@ -184,7 +184,6 @@ class AgentLoop:
         iteration = 0
         final_content = None
         tools_used: list[str] = []
-        interim_content = None  # Save interim content for potential fallback
 
         while iteration < self.max_iterations:
             iteration += 1
@@ -228,25 +227,6 @@ class AgentLoop:
                     )
             else:
                 final_content = self._strip_think(response.content)
-                # Some models (MiniMax, Gemini Flash, GPT-4.1, etc.) send an
-                # interim text response (e.g. "Let me investigate...") before
-                # making tool calls. If no tools have been used yet and we
-                # haven't already retried, forward the text as progress and
-                # give the model one more chance to use tools.
-                if not tools_used and response.content and final_content is None:
-                    # First response with content but no tools - save and retry
-                    interim_content = self._strip_think(response.content)
-                    logger.debug("Interim text response (no tools used yet), retrying: {}", interim_content[:80])
-                    messages = self.context.add_assistant_message(
-                        messages, response.content,
-                        reasoning_content=response.reasoning_content,
-                    )
-                    # Continue to retry
-                    continue
-                # Otherwise, use the response as-is (could be tools or final content)
-                # If empty after retry, fall back to interim_content if available
-                if not final_content and interim_content:
-                    final_content = interim_content
                 break
 
         return final_content, tools_used
@@ -337,7 +317,7 @@ class AgentLoop:
                                   content="New session started. Memory consolidation in progress.")
         if cmd == "/help":
             return OutboundMessage(channel=msg.channel, chat_id=msg.chat_id,
-                                  content="🐈 nanobot commands:\n/new — Start a new conversation\n/help — Show available commands")
+                                  content="馃悎 nanobot commands:\n/new 鈥?Start a new conversation\n/help 鈥?Show available commands")
         
         if len(session.messages) > self.memory_window and session.key not in self._consolidating:
             self._consolidating.add(session.key)
@@ -560,3 +540,4 @@ Respond with ONLY valid JSON, no markdown fences."""
         
         response = await self._process_message(msg, session_key=session_key, on_progress=on_progress)
         return response.content if response else ""
+
