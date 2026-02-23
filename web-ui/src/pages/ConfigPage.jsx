@@ -168,8 +168,8 @@ const ConfigPage = () => {
           <label>{t('configPage.maxTokens')}</label>
           <input
             type="number"
-            value={agents.max_tokens || 8192}
-            onChange={(e) => handleChange('agents', 'defaults', { ...agents, max_tokens: parseInt(e.target.value) })}
+            value={agents.maxTokens ?? agents.max_tokens ?? 8192}
+            onChange={(e) => handleChange('agents', 'defaults', { ...agents, maxTokens: parseInt(e.target.value) })}
             className="form-input"
           />
         </div>
@@ -189,17 +189,18 @@ const ConfigPage = () => {
           <label>{t('configPage.maxToolIterations')}</label>
           <input
             type="number"
-            value={agents.max_tool_iterations || 20}
-            onChange={(e) => handleChange('agents', 'defaults', { ...agents, max_tool_iterations: parseInt(e.target.value) })}
+            value={agents.maxToolIterations ?? agents.max_tool_iterations ?? 20}
+            onChange={(e) => handleChange('agents', 'defaults', { ...agents, maxToolIterations: parseInt(e.target.value) })}
             className="form-input"
           />
+          <div className="form-help-text">{t('configPage.maxToolIterationsHint')}</div>
         </div>
         <div className="form-group">
           <label>{t('configPage.memoryWindow')}</label>
           <input
             type="number"
-            value={agents.memory_window || 50}
-            onChange={(e) => handleChange('agents', 'defaults', { ...agents, memory_window: parseInt(e.target.value) })}
+            value={agents.memoryWindow ?? agents.memory_window ?? 50}
+            onChange={(e) => handleChange('agents', 'defaults', { ...agents, memoryWindow: parseInt(e.target.value) })}
             className="form-input"
           />
         </div>

@@ -52,6 +52,7 @@ WEB_BACKEND_REVISION = "reminder-fix-v3-2026-02-22"
 session_event_subscribers: dict[str, set[asyncio.Queue]] = defaultdict(set)
 DEFAULT_ADMIN_USERNAME = "admin"
 DEFAULT_ADMIN_PASSWORD = "Password123!"
+EMPTY_FINAL_RESPONSE = "I've completed processing but have no response to give."
 
 
 def _env_enabled(name: str, default: str = "false") -> bool:
@@ -776,7 +777,7 @@ async def generate_ai_response(content: str, session_id: str = "web:default") ->
             channel="web",
             chat_id=session_id,
         )
-        return response
+        return _normalize_agent_response(response, session_id)
             
     except Exception as e:
         logger.error(f"Error generating AI response: {e}")
@@ -815,6 +816,38 @@ def _ms_to_iso(ms: int | None) -> str | None:
         return datetime.fromtimestamp(ms / 1000).isoformat()
     except Exception:
         return None
+
+
+def _get_last_tools_used_count(session_id: str) -> int:
+    """Read latest assistant tools_used count from workspace session jsonl."""
+    try:
+        workspace = Path(load_config().workspace_path).expanduser()
+        session_file = workspace / "sessions" / f"{session_id.replace(':', '_')}.jsonl"
+        if not session_file.exists():
+            return 0
+        lines = session_file.read_text(encoding="utf-8").splitlines()
+        for line in reversed(lines):
+            line = line.strip()
+            if not line:
+                continue
+            obj = json.loads(line)
+            if obj.get("role") == "assistant":
+                tools_used = obj.get("tools_used")
+                if isinstance(tools_used, list):
+                    return len(tools_used)
+                return 0
+    except Exception:
+        return 0
+    return 0
+
+
+def _normalize_agent_response(text: str | None, session_id: str | None = None) -> str:
+    """Convert empty-final fallback into actionable UI text."""
+    content = (text or "").strip()
+    if content == EMPTY_FINAL_RESPONSE:
+        tool_count = _get_last_tools_used_count(session_id) if session_id else 0
+        return f"__NB_I18N_EMPTY_FINAL__:{tool_count}"
+    return text or ""
 
 
 # Session endpoints
@@ -1131,6 +1164,7 @@ async def send_message_stream_endpoint(session_id: str, body: dict = Body(...)):
                         chat_id=session_id,
                         on_progress=on_progress,
                     )
+                    ai_response = _normalize_agent_response(ai_response, session_id)
 
                 ai_message = add_message(session_id, ai_response, "assistant")
                 await queue.put(

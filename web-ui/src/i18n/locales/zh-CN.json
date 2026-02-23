@@ -30,6 +30,7 @@
     "assistantName": "Nanobot",
     "firstMessage": "发送第一条消息开始对话",
     "thinking": "思考中...",
+    "emptyFinalResponse": "任务执行完成，但未生成最终回复。本次已执行工具次数：{{count}}。通常是工具调用轮次过多导致。请在 配置 > Agent 将“最大工具迭代次数”调高后重试。",
     "error": "错误：{{message}}"
   },
   "config": {
@@ -56,6 +57,7 @@
     "maxTokens": "最大 Token 数",
     "temperature": "温度",
     "maxToolIterations": "最大工具迭代次数",
+    "maxToolIterationsHint": "复杂任务建议提高到 40 或 60，避免执行完成但无最终回复。",
     "memoryWindow": "记忆窗口",
     "enableChannel": "启用 {{channel}}",
     "commaSeparated": "{{key}}（逗号分隔）",

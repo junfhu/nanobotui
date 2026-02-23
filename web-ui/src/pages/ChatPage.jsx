@@ -38,6 +38,8 @@ const copyTextToClipboard = async (text) => {
   document.body.removeChild(textarea)
 }
 
+const EMPTY_FINAL_PREFIX = '__NB_I18N_EMPTY_FINAL__:'
+
 const ChatPage = () => {
   const { t } = useTranslation()
   const { themeMode = 'dark' } = useOutletContext() || {}
@@ -238,6 +240,16 @@ const ChatPage = () => {
     pre: PreWithCopy
   }), [t])
 
+  const localizeMessageContent = (raw) => {
+    const content = raw || ''
+    if (!content.startsWith(EMPTY_FINAL_PREFIX)) {
+      return content
+    }
+    const countRaw = content.slice(EMPTY_FINAL_PREFIX.length).trim()
+    const toolCount = Number.parseInt(countRaw, 10)
+    return t('chat.emptyFinalResponse', { count: Number.isFinite(toolCount) ? toolCount : 0 })
+  }
+
   const renderedMessages = useMemo(() => (
     <div className="messages-container">
       {messages.map((msg) => (
@@ -267,7 +279,7 @@ const ChatPage = () => {
                 className="markdown-body"
                 components={markdownComponents}
               >
-                {msg.content}
+                {localizeMessageContent(msg.content)}
               </ReactMarkdown>
             </div>
           </div>
