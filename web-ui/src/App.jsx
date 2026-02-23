@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Layout from './components/Layout';
 import ChatPage from './pages/ChatPage';
 import ConfigPage from './pages/ConfigPage';
+import SkillsPage from './pages/SkillsPage';
 import SystemPage from './pages/SystemPage';
 import LoginPage from './pages/LoginPage';
 import { api, authStorage } from './api';
@@ -95,6 +96,7 @@ function App() {
           <Route index element={<Navigate to="/chat" replace />} />
           <Route path="chat" element={<ChatPage />} />
           <Route path="config" element={<ConfigPage />} />
+          <Route path="skills" element={<SkillsPage />} />
           <Route path="system" element={<SystemPage />} />
         </Route>
         <Route path="*" element={<Navigate to={authToken ? "/chat" : "/login"} replace />} />

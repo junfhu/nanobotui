@@ -7,6 +7,7 @@ import subprocess
 import asyncio
 import re
 import sqlite3
+import shutil
 import hashlib
 import hmac
 import secrets
@@ -39,6 +40,7 @@ from nanobot.providers.openai_codex_provider import OpenAICodexProvider
 from nanobot.providers.custom_provider import CustomProvider
 from nanobot.cron.service import CronService
 from nanobot.cron.types import CronJob, CronSchedule
+from nanobot.agent.skills import SkillsLoader, BUILTIN_SKILLS_DIR
 
 # Global variables
 NANOBOT_AVAILABLE = False
@@ -360,6 +362,33 @@ def _normalize_backup_filename(name: str) -> str:
     if not trimmed.endswith(".json"):
         trimmed = f"{trimmed}.json"
     return trimmed
+
+
+def _resolve_skill_delete_dir(name: str, source: str | None) -> Path:
+    """Resolve and validate a deletable skill directory."""
+    skill_name = (name or "").strip()
+    if not skill_name:
+        raise ValueError("Skill name is required")
+    if "/" in skill_name or "\\" in skill_name or skill_name in {".", ".."}:
+        raise ValueError("Invalid skill name")
+
+    src = (source or "").strip().lower()
+    if src == "workspace":
+        base_dir = Path(load_config().workspace_path) / "skills"
+    elif src == "builtin":
+        base_dir = BUILTIN_SKILLS_DIR
+    else:
+        raise ValueError("Skill source must be workspace or builtin")
+
+    target = (base_dir / skill_name).resolve()
+    base = base_dir.resolve()
+    if not str(target).startswith(f"{base}{os.sep}"):
+        raise ValueError("Invalid skill path")
+    if not target.exists() or not target.is_dir():
+        raise FileNotFoundError(f"Skill not found: {skill_name}")
+    if not (target / "SKILL.md").exists():
+        raise ValueError("Invalid skill directory")
+    return target
 
 
 _CN_NUM = {
@@ -1143,6 +1172,94 @@ async def send_message_stream_endpoint(session_id: str, body: dict = Body(...)):
 
 
 # Config endpoints
+@app.get("/api/v1/skills")
+async def get_skills():
+    """List all skills from workspace and built-in directories."""
+    try:
+        config = load_config()
+        loader = SkillsLoader(Path(config.workspace_path))
+        skills = []
+        for s in loader.list_skills(filter_unavailable=False):
+            metadata = loader.get_skill_metadata(s["name"]) or {}
+            skills.append({
+                "name": s["name"],
+                "source": s["source"],
+                "path": s["path"],
+                "description": metadata.get("description") or s["name"],
+                "deletable": s["source"] == "workspace",
+            })
+        return {
+            "success": True,
+            "data": {
+                "items": skills,
+                "total": len(skills),
+            },
+            "error": None
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "data": None,
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": str(e)
+            }
+        }
+
+
+@app.delete("/api/v1/skills/{name}")
+async def delete_skill(name: str, source: str = Query(..., pattern="^(workspace|builtin)$")):
+    """Delete a skill directory by name and source."""
+    try:
+        if source == "builtin":
+            return JSONResponse(
+                status_code=403,
+                content={
+                    "success": False,
+                    "data": None,
+                    "error": {"code": "FORBIDDEN", "message": "Built-in skills cannot be deleted"},
+                },
+            )
+        target = _resolve_skill_delete_dir(name, source)
+        shutil.rmtree(target)
+        return {
+            "success": True,
+            "data": {
+                "message": "Skill deleted",
+                "name": name,
+                "source": source,
+            },
+            "error": None
+        }
+    except FileNotFoundError as e:
+        return JSONResponse(
+            status_code=404,
+            content={
+                "success": False,
+                "data": None,
+                "error": {"code": "NOT_FOUND", "message": str(e)},
+            },
+        )
+    except ValueError as e:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "success": False,
+                "data": None,
+                "error": {"code": "BAD_REQUEST", "message": str(e)},
+            },
+        )
+    except Exception as e:
+        return {
+            "success": False,
+            "data": None,
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": str(e)
+            }
+        }
+
+
 @app.get("/api/v1/config")
 async def get_config():
     """Get configuration."""

@@ -68,6 +68,9 @@ const Layout = ({ themeMode = 'dark', onToggleTheme, onLogout, user }) => {
           <NavLink to="/config" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
             ⚙️ {t('layout.config')}
           </NavLink>
+          <NavLink to="/skills" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
+            🧩 {t('layout.skills')}
+          </NavLink>
           <NavLink to="/system" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
             📊 {t('layout.system')}
           </NavLink>
