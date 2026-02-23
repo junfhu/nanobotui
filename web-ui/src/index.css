@@ -6,24 +6,24 @@
   --nb-primary: #1890ff;
   --nb-success: #52c41a;
   --nb-danger: #ff4d4f;
-  --nb-bg: #f4f7fb;
-  --nb-panel: #ffffff;
-  --nb-surface: #f7f9fc;
-  --nb-surface-strong: #eef2f8;
+  --nb-bg: #f9f9fb;
+  --nb-panel: #fbfbfe;
+  --nb-surface: #f0f0f4;
+  --nb-surface-strong: #e0e0e6;
   --nb-bubble-assistant: #ffffff;
   --nb-bubble-user: #0f5fd6;
   --nb-bubble-user-text: #ffffff;
   --nb-bubble-user-border: #0b4cae;
   --nb-bubble-user-accent: #f3f8ff;
   --nb-bubble-user-meta: rgba(255, 255, 255, 0.82);
-  --nb-border: #d9e0eb;
-  --nb-border-strong: #c5d0e0;
-  --nb-hover: #e9f2ff;
-  --nb-text: #1d2a3a;
-  --nb-text-soft: #2f3f53;
-  --nb-text-muted: #6a7a90;
-  --nb-code-bg: rgba(15, 32, 60, 0.12);
-  --nb-pre-bg: rgba(15, 32, 60, 0.1);
+  --nb-border: #e0e0e6;
+  --nb-border-strong: #80808e;
+  --nb-hover: #e0e0e6;
+  --nb-text: #15141a;
+  --nb-text-soft: #5b5b66;
+  --nb-text-muted: #80808e;
+  --nb-code-bg: rgba(15, 32, 60, 0.2);
+  --nb-pre-bg: rgba(15, 32, 60, 0.18);
   --nb-shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.08);
 
   font-synthesis: none;
@@ -34,24 +34,24 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --nb-bg: #121212;
-  --nb-panel: #1f1f1f;
-  --nb-surface: rgba(255, 255, 255, 0.02);
-  --nb-surface-strong: #2d2d2d;
-  --nb-bubble-assistant: #24272e;
+  --nb-bg: #2b2a33;
+  --nb-panel: #23222b;
+  --nb-surface: #2b2a33;
+  --nb-surface-strong: #32313c;
+  --nb-bubble-assistant: #3a3944;
   --nb-bubble-user: #1890ff;
   --nb-bubble-user-text: #ffffff;
   --nb-bubble-user-border: #3aa0ff;
   --nb-bubble-user-accent: #ffffff;
   --nb-bubble-user-meta: rgba(255, 255, 255, 0.85);
-  --nb-border: #333333;
-  --nb-border-strong: #444444;
-  --nb-hover: rgba(255, 255, 255, 0.08);
-  --nb-text: #e8edf5;
-  --nb-text-soft: #d9e0eb;
-  --nb-text-muted: #99a7b8;
-  --nb-code-bg: rgba(255, 255, 255, 0.14);
-  --nb-pre-bg: rgba(255, 255, 255, 0.08);
+  --nb-border: #5b5b66;
+  --nb-border-strong: #8f8f9d;
+  --nb-hover: #32313c;
+  --nb-text: #fbfbfe;
+  --nb-text-soft: #cfcfd8;
+  --nb-text-muted: #8f8f9d;
+  --nb-code-bg: rgba(255, 255, 255, 0.2);
+  --nb-pre-bg: rgba(255, 255, 255, 0.12);
   --nb-shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
 

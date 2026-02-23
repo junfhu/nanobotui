@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
+import 'github-markdown-css/github-markdown.css'
 // Import i18n
 import './i18n'
 

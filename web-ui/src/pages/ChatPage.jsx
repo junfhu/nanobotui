@@ -8,12 +8,35 @@ import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import { useSessionStore, useMessageStore } from '../store'
 import { api } from '../api'
-import 'highlight.js/styles/github-dark.css'
+import 'highlight.js/styles/github.css'
 import './ChatPage.css'
 
 const { Header, Sider, Content } = Layout
 const { TextArea } = Input
 const { Text } = Typography
+
+const extractTextFromNode = (node) => {
+  if (typeof node === 'string') return node
+  if (Array.isArray(node)) return node.map(extractTextFromNode).join('')
+  if (React.isValidElement(node)) return extractTextFromNode(node.props?.children)
+  return ''
+}
+
+const copyTextToClipboard = async (text) => {
+  if (navigator?.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text)
+    return
+  }
+  const textarea = document.createElement('textarea')
+  textarea.value = text
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'absolute'
+  textarea.style.left = '-9999px'
+  document.body.appendChild(textarea)
+  textarea.select()
+  document.execCommand('copy')
+  document.body.removeChild(textarea)
+}
 
 const ChatPage = () => {
   const { t } = useTranslation()
@@ -181,6 +204,40 @@ const ChatPage = () => {
     },
   }), [isDark])
 
+  const PreWithCopy = ({ children, ...props }) => {
+    const [copied, setCopied] = useState(false)
+    const codeText = extractTextFromNode(children).replace(/\n$/, '')
+
+    const handleCopy = async () => {
+      if (!codeText.trim()) return
+      try {
+        await copyTextToClipboard(codeText)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      } catch (error) {
+        message.error(t('chat.copyFailed'))
+        console.error(error)
+      }
+    }
+
+    return (
+      <div className="code-block">
+        <pre {...props}>{children}</pre>
+        <button
+          type="button"
+          className="code-copy-button"
+          onClick={handleCopy}
+        >
+          {copied ? t('chat.copied') : t('chat.copy')}
+        </button>
+      </div>
+    )
+  }
+
+  const markdownComponents = useMemo(() => ({
+    pre: PreWithCopy
+  }), [t])
+
   const renderedMessages = useMemo(() => (
     <div className="messages-container">
       {messages.map((msg) => (
@@ -208,6 +265,7 @@ const ChatPage = () => {
                 remarkPlugins={[remarkGfm]}
                 rehypePlugins={[rehypeHighlight]}
                 className="markdown-body"
+                components={markdownComponents}
               >
                 {msg.content}
               </ReactMarkdown>
