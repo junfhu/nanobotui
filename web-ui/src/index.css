@@ -10,7 +10,7 @@
   --nb-panel: #ffffff;
   --nb-surface: #f7f9fc;
   --nb-surface-strong: #eef2f8;
-  --nb-bubble-assistant: #eef2f8;
+  --nb-bubble-assistant: #ffffff;
   --nb-bubble-user: #0f5fd6;
   --nb-bubble-user-text: #ffffff;
   --nb-bubble-user-border: #0b4cae;
@@ -22,8 +22,8 @@
   --nb-text: #1d2a3a;
   --nb-text-soft: #2f3f53;
   --nb-text-muted: #6a7a90;
-  --nb-code-bg: rgba(26, 45, 74, 0.08);
-  --nb-pre-bg: rgba(26, 45, 74, 0.06);
+  --nb-code-bg: rgba(15, 32, 60, 0.12);
+  --nb-pre-bg: rgba(15, 32, 60, 0.1);
   --nb-shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.08);
 
   font-synthesis: none;
@@ -38,7 +38,7 @@
   --nb-panel: #1f1f1f;
   --nb-surface: rgba(255, 255, 255, 0.02);
   --nb-surface-strong: #2d2d2d;
-  --nb-bubble-assistant: #2d2d2d;
+  --nb-bubble-assistant: #24272e;
   --nb-bubble-user: #1890ff;
   --nb-bubble-user-text: #ffffff;
   --nb-bubble-user-border: #3aa0ff;
@@ -50,8 +50,8 @@
   --nb-text: #e8edf5;
   --nb-text-soft: #d9e0eb;
   --nb-text-muted: #99a7b8;
-  --nb-code-bg: rgba(255, 255, 255, 0.1);
-  --nb-pre-bg: rgba(255, 255, 255, 0.05);
+  --nb-code-bg: rgba(255, 255, 255, 0.14);
+  --nb-pre-bg: rgba(255, 255, 255, 0.08);
   --nb-shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.18);
 }
 

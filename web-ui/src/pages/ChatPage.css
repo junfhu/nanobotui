@@ -160,6 +160,7 @@
 .message-wrapper.assistant .message-bubble {
   background-color: var(--nb-bubble-assistant);
   color: var(--nb-text);
+  border: 1px solid var(--nb-border);
   border-radius: 12px 12px 12px 0;
 }
 
