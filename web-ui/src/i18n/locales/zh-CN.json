@@ -91,6 +91,7 @@
   "layout": {
     "chat": "聊天",
     "config": "配置",
+    "skills": "Skills",
     "system": "系统",
     "darkMode": "夜间模式",
     "lightMode": "日间模式",
@@ -126,5 +127,18 @@
     "uptime": "运行时间",
     "workspace": "工作空间",
     "environment": "环境"
+  },
+  "skillsPage": {
+    "title": "Skills",
+    "loading": "正在加载 skills...",
+    "empty": "暂无 skills",
+    "total": "共 {{count}} 个",
+    "filterPlaceholder": "过滤 skills（名称或描述）",
+    "path": "路径",
+    "delete": "删除",
+    "deleting": "删除中...",
+    "builtinReadonly": "内置不可删",
+    "deleteFailed": "删除失败",
+    "confirmDelete": "确定删除 skill「{{name}}」（来源：{{source}}）吗？"
   }
 }

@@ -257,4 +257,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ filename }),
     }),
+
+  // Skills
+  listSkills: () => request('/skills'),
+
+  deleteSkill: (name, source) =>
+    request(`/skills/${encodeURIComponent(name)}?source=${encodeURIComponent(source)}`, {
+      method: 'DELETE',
+    }),
 }

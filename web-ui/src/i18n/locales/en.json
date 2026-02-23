@@ -91,6 +91,7 @@
   "layout": {
     "chat": "Chat",
     "config": "Config",
+    "skills": "Skills",
     "system": "System",
     "darkMode": "Dark Mode",
     "lightMode": "Light Mode",
@@ -126,5 +127,18 @@
     "uptime": "Uptime",
     "workspace": "Workspace",
     "environment": "Environment"
+  },
+  "skillsPage": {
+    "title": "Skills",
+    "loading": "Loading skills...",
+    "empty": "No skills found",
+    "total": "Total: {{count}}",
+    "filterPlaceholder": "Filter skills (name or description)",
+    "path": "Path",
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "builtinReadonly": "Built-in (read-only)",
+    "deleteFailed": "Failed to delete skill",
+    "confirmDelete": "Delete skill \"{{name}}\" (source: {{source}})?"
   }
 }
