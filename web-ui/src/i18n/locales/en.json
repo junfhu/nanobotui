@@ -31,7 +31,9 @@
     "firstMessage": "Send your first message",
     "thinking": "Thinking...",
     "emptyFinalResponse": "Task finished but no final reply was generated. Tools executed this run: {{count}}. This is usually caused by too many tool iterations. Go to Config > Agent and increase Max Tool Iterations, then retry.",
-    "error": "Error: {{message}}"
+    "error": "Error: {{message}}",
+    "fileSelected": "File selected: {{fileName}}",
+    "attachFile": "Attach file"
   },
   "config": {
     "save": "Save",

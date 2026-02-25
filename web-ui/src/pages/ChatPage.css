@@ -341,6 +341,59 @@
   align-items: flex-end;
 }
 
+.upload-button {
+  border-radius: 8px;
+  border: 1px solid var(--nb-border);
+  background-color: var(--nb-surface-strong);
+  transition: all 0.2s ease;
+}
+
+.upload-button:hover:not(:disabled) {
+  border-color: #1890ff;
+  color: #1890ff;
+  background-color: rgba(24, 144, 255, 0.05);
+}
+
+.file-preview-area {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background-color: var(--nb-surface);
+  border: 1px solid var(--nb-border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.file-preview-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.file-name {
+  font-size: 13px;
+  color: var(--nb-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.file-size {
+  font-size: 12px;
+  color: var(--nb-text-muted);
+  white-space: nowrap;
+}
+
 .chat-input {
   flex: 1;
   border-radius: 8px;

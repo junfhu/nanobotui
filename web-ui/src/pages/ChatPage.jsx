@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Layout, Input, Button, Typography, Avatar, Space, Spin, message, Empty, Modal, ConfigProvider, theme as antdTheme } from 'antd'
-import { SendOutlined, PlusOutlined, DeleteOutlined, EditOutlined, RobotOutlined, UserOutlined, StopOutlined } from '@ant-design/icons'
+import { Layout, Input, Button, Typography, Avatar, Space, Spin, message, Empty, Modal, ConfigProvider, theme as antdTheme, Upload } from 'antd'
+import { SendOutlined, PlusOutlined, DeleteOutlined, EditOutlined, RobotOutlined, UserOutlined, StopOutlined, PaperClipOutlined } from '@ant-design/icons'
 import { useOutletContext } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -68,6 +68,7 @@ const ChatPage = () => {
     clearMessages
   } = useMessageStore()
   const [inputMessage, setInputMessage] = useState('')
+  const [selectedFile, setSelectedFile] = useState(null)
   const [showRenameModal, setShowRenameModal] = useState(false)
   const [renameTitle, setRenameTitle] = useState('')
   const [sessionToRename, setSessionToRename] = useState(null)
@@ -156,21 +157,41 @@ const ChatPage = () => {
     }
   }
 
+  // Handle file selection
+  const handleFileChange = (info) => {
+    if (info.fileList.length > 0) {
+      const file = info.fileList[info.fileList.length - 1].originFileObj
+      setSelectedFile(file)
+      message.info(t('chat.fileSelected', { fileName: file.name }))
+    } else {
+      setSelectedFile(null)
+    }
+  }
+
+  // Remove selected file
+  const removeSelectedFile = () => {
+    setSelectedFile(null)
+  }
+
   // Handle send message
   const handleSendMessage = async () => {
-    if (inputMessage.trim() && currentSession) {
-      const text = inputMessage.trim()
-      setInputMessage('')
-      try {
-        const result = await sendMessage(currentSession.id, text)
-        if (result?.aborted) {
-          return
-        }
-      } catch (error) {
-        setInputMessage(text)
-        message.error(t('chat.sendMessageFailed'))
-        console.error(error)
+    if ((!inputMessage.trim() && !selectedFile) || !currentSession || sending) return
+    
+    const text = inputMessage.trim()
+    setInputMessage('')
+    
+    try {
+      // Send message with file if available
+      const result = await sendMessage(currentSession.id, text, selectedFile)
+      if (result?.aborted) {
+        return
       }
+      // Clear file after successful send
+      setSelectedFile(null)
+    } catch (error) {
+      setInputMessage(text)
+      message.error(t('chat.sendMessageFailed'))
+      console.error(error)
     }
   }
 
@@ -427,7 +448,43 @@ const ChatPage = () => {
           </Content>
 
           <div className="chat-input-container">
+            {/* File preview area */}
+            {selectedFile && (
+              <div className="file-preview-area">
+                <div className="file-preview-item">
+                  <div className="file-info">
+                    <span className="file-name">{selectedFile.name}</span>
+                    <span className="file-size">({(selectedFile.size / 1024).toFixed(2)}KB)</span>
+                  </div>
+                  <Button 
+                    type="text" 
+                    onClick={removeSelectedFile}
+                    danger
+                    size="small"
+                  >
+                    ×
+                  </Button>
+                </div>
+              </div>
+            )}
+            
             <div className="chat-input-row">
+              <Upload
+                beforeUpload={(file) => {
+                  handleFileChange({ fileList: [{ originFileObj: file }] });
+                  return false; // Prevent automatic upload
+                }}
+                showUploadList={false}
+                disabled={sending}
+              >
+                <Button
+                  icon={<PaperClipOutlined />}
+                  className="upload-button"
+                  disabled={sending}
+                >
+                </Button>
+              </Upload>
+              
               <TextArea
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
@@ -442,7 +499,7 @@ const ChatPage = () => {
                 icon={sending ? <StopOutlined /> : <SendOutlined />}
                 onClick={sending ? handleStopMessage : handleSendMessage}
                 danger={sending}
-                disabled={(!currentSession || !inputMessage.trim()) && !sending}
+                disabled={(!currentSession || (!inputMessage.trim() && !selectedFile)) && !sending}
                 className="send-button"
               >
                 {sending ? t('chat.stop') : t('chat.sendMessage')}

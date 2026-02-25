@@ -13,15 +13,8 @@ import hmac
 import secrets
 import base64
 from pathlib import Path
-
-# Resolve nanobot project path dynamically (override with NANOBOT_PATH env if needed)
-DEFAULT_NANOBOT_PATH = Path(__file__).resolve().parent.parent
-NANOBOT_PATH = Path(os.environ.get("NANOBOT_PATH", str(DEFAULT_NANOBOT_PATH))).expanduser().resolve()
-if str(NANOBOT_PATH) not in sys.path:
-    sys.path.insert(0, str(NANOBOT_PATH))
-
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Query, Body, Request
+from fastapi import FastAPI, HTTPException, Query, Body, Request, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 import json
@@ -29,6 +22,14 @@ import uuid
 from datetime import datetime
 from loguru import logger
 from collections import defaultdict
+
+# Resolve nanobot project path dynamically (override with NANOBOT_PATH env if needed)
+DEFAULT_NANOBOT_PATH = Path(__file__).resolve().parent.parent
+NANOBOT_PATH = Path(os.environ.get("NANOBOT_PATH", str(DEFAULT_NANOBOT_PATH))).expanduser().resolve()
+if str(NANOBOT_PATH) not in sys.path:
+    sys.path.insert(0, str(NANOBOT_PATH))
+
+
 
 # Import nanobot components
 from nanobot.bus.queue import MessageBus
@@ -739,7 +740,7 @@ def delete_session(session_id: str) -> bool:
         return True
     return False
 
-def add_message(session_id: str, content: str, role: str = "user") -> dict:
+def add_message(session_id: str, content: str, role: str = "user", files: list = None) -> dict:
     """Add a message to a session."""
     session_data = get_session(session_id)
     if not session_data:
@@ -755,7 +756,8 @@ def add_message(session_id: str, content: str, role: str = "user") -> dict:
         "createdAt": now,
         "sequence": len(session_data['messages']),
         "toolSteps": [],
-        "tokenUsage": None
+        "tokenUsage": None,
+        "files": files or []  # Add files to message if provided
     }
     session_data['messages'].append(message)
     session_data['messageCount'] = len(session_data['messages'])
@@ -765,14 +767,24 @@ def add_message(session_id: str, content: str, role: str = "user") -> dict:
     _publish_session_event(session_id, {"type": "message", "message": message})
     return message
 
-async def generate_ai_response(content: str, session_id: str = "web:default") -> str:
+async def generate_ai_response(content: str, session_id: str = "web:default", files: list = None) -> str:
     """Generate AI response using nanobot agent."""
     if not NANOBOT_AVAILABLE or agent_loop is None:
         return f"This is a placeholder response for: {content}"
     
     try:
+        # If files are provided, include them in the message context
+        if files:
+            # Add file information to the content
+            file_info = "\n\nFiles uploaded:\n"
+            for file in files:
+                file_info += f"- {file.get('name', 'Unknown')} ({file.get('size', 'Unknown')} bytes, {file.get('type', 'Unknown type')})\n"
+            content_with_files = content + file_info
+        else:
+            content_with_files = content
+
         response = await agent_loop.process_direct(
-            content=content,
+            content=content_with_files,
             session_key=session_id,
             channel="web",
             chat_id=session_id,
@@ -1061,8 +1073,9 @@ async def send_message_endpoint(session_id: str, body: dict = Body(...)):
     """Send message to session."""
     try:
         content = body.get("content", "")
+        files = body.get("files", [])  # Extract file information if present
         # Add user message
-        user_message = add_message(session_id, content, "user")
+        user_message = add_message(session_id, content, "user", files=files)
         reminder_confirmation = _schedule_web_relative_reminder(session_id, content)
         if reminder_confirmation:
             ai_message = add_message(session_id, reminder_confirmation, "assistant")
@@ -1075,7 +1088,7 @@ async def send_message_endpoint(session_id: str, body: dict = Body(...)):
                 "error": None
             }
         # Generate AI response
-        ai_response = await generate_ai_response(content, session_id)
+        ai_response = await generate_ai_response(content, session_id, files=files)
         # Add AI message
         ai_message = add_message(session_id, ai_response, "assistant")
         return {
@@ -1098,9 +1111,33 @@ async def send_message_endpoint(session_id: str, body: dict = Body(...)):
 
 
 @app.post("/api/v1/chat/sessions/{session_id}/messages/stream")
-async def send_message_stream_endpoint(session_id: str, body: dict = Body(...)):
+async def send_message_stream_endpoint(session_id: str, request: Request):
     """Send message and stream progress updates via SSE."""
-    content = (body.get("content") or "").strip()
+    content = ""
+    files = []
+    uploaded_file = None
+
+    # Check content type to determine how to parse the request
+    content_type = request.headers.get("content-type", "")
+    
+    if content_type.startswith("multipart/form-data"):
+        # Parse multipart form data (when file is uploaded)
+        form = await request.form()
+        content = (form.get("content") or "").strip()
+        files_json = form.get("files")
+        if files_json:
+            try:
+                files = json.loads(files_json)
+            except Exception:
+                files = []
+        # Get the actual uploaded file if present
+        uploaded_file = form.get("file")
+    else:
+        # Parse JSON body (when no file is uploaded)
+        body = await request.json()
+        content = (body.get("content") or "").strip()
+        files = body.get("files", [])
+
     if not content:
         return JSONResponse(
             status_code=400,
@@ -1111,8 +1148,32 @@ async def send_message_stream_endpoint(session_id: str, body: dict = Body(...)):
             },
         )
 
-    # Persist user message immediately.
-    user_message = add_message(session_id, content, "user")
+    # If there's an uploaded file, save it temporarily and add file info to content
+    if uploaded_file:
+        # Process the uploaded file
+        import tempfile
+        import os
+        from pathlib import Path
+
+        # Create temporary file
+        temp_dir = Path(get_data_dir()) / "temp_uploads"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        temp_file_path = temp_dir / f"temp_{uuid.uuid4()}_{uploaded_file.filename}"
+        
+        # Save uploaded file content
+        content_data = await uploaded_file.read()
+        with open(temp_file_path, "wb") as f:
+            f.write(content_data)
+        
+        # Add file information to the content for the AI to process
+        file_info = f"\n\n用户上传了文件: {uploaded_file.filename} (大小: {len(content_data)} 字节, 类型: {uploaded_file.content_type})\n文件已保存至: {temp_file_path}"
+        content_with_file = content + file_info
+
+        # Add user message with file info
+        user_message = add_message(session_id, content, "user", files=files)
+    else:
+        # Add user message without file
+        user_message = add_message(session_id, content, "user", files=files)
 
     # Deterministic fallback for simple relative reminders in Web UI.
     reminder_confirmation = _schedule_web_relative_reminder(session_id, content)
@@ -1157,8 +1218,10 @@ async def send_message_stream_endpoint(session_id: str, body: dict = Body(...)):
                 if not NANOBOT_AVAILABLE or agent_loop is None:
                     ai_response = f"This is a placeholder response for: {content}"
                 else:
+                    # Use content with file info if file was uploaded
+                    content_to_send = content_with_file if uploaded_file else content
                     ai_response = await agent_loop.process_direct(
-                        content=content,
+                        content=content_to_send,
                         session_key=session_id,
                         channel="web",
                         chat_id=session_id,
@@ -1718,6 +1781,7 @@ async def chat(chat_data: dict):
         # Get message and session_id from request body
         message = chat_data.get("message", "")
         session_id = chat_data.get("session_id", "web:default")
+        files = chat_data.get("files", [])  # Extract file information if present
         
         if not message:
             return JSONResponse(
@@ -1725,12 +1789,14 @@ async def chat(chat_data: dict):
                 content={"error": "Message is required"}
             )
         
-        # Fallback to placeholder response
+        # Generate AI response with file information if present
+        response = await generate_ai_response(message, session_id, files=files)
         return {
             "message": message,
-            "response": f"This is a placeholder response for: {message}",
+            "response": response,
             "session_id": session_id,
-            "note": "Nanobot integration is pending - using placeholder response"
+            "files": files,  # Include files in response for reference
+            "note": "Nanobot integration active" if NANOBOT_AVAILABLE else "Nanobot integration is pending - using placeholder response"
         }
     except Exception as e:
         return JSONResponse(

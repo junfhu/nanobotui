@@ -99,72 +99,103 @@ export const api = {
       signal,
     }),
 
-  sendMessageStream: async (sessionId, content, { onProgress, onAck, signal } = {}) => {
-    const token = authStorage.getToken()
-    const headers = { 'Content-Type': 'application/json' }
-    if (token) {
-      headers.Authorization = `Bearer ${token}`
+  sendMessageStream: async (sessionId, content, { onProgress, onAck, signal, file } = {}) => {
+    let response;
+    
+    if (file) {
+      // If there's a file, use FormData to send both file and content
+      const formData = new FormData();
+      formData.append('content', content);
+      
+      // Add file information as a JSON string
+      const fileInfo = {
+        name: file.name,
+        size: file.size,
+        type: file.type
+      };
+      formData.append('files', JSON.stringify([fileInfo]));
+      formData.append('file', file); // This is the actual file
+      
+      const token = authStorage.getToken();
+      const headers = {};
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      
+      response = await fetch(`${API_BASE}/chat/sessions/${sessionId}/messages/stream`, {
+        method: 'POST',
+        headers, // Don't set Content-Type header when using FormData
+        body: formData,
+        signal,
+      });
+    } else {
+      // If no file, use the original JSON approach
+      const token = authStorage.getToken();
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+      response = await fetch(`${API_BASE}/chat/sessions/${sessionId}/messages/stream`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ content }),
+        signal,
+      });
     }
-    const response = await fetch(`${API_BASE}/chat/sessions/${sessionId}/messages/stream`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ content }),
-      signal,
-    })
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({
         success: false,
         error: { code: 'NETWORK_ERROR', message: i18n.t('api.networkError') }
-      }))
-      const err = new Error(errorData.error?.message || i18n.t('api.requestFailed'))
-      err.code = errorData.error?.code
-      throw err
+      }));
+      const err = new Error(errorData.error?.message || i18n.t('api.requestFailed'));
+      err.code = errorData.error?.code;
+      throw err;
     }
 
     if (!response.body) {
-      throw new Error(i18n.t('api.requestFailed'))
+      throw new Error(i18n.t('api.requestFailed'));
     }
 
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-    let finalData = null
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let finalData = null;
 
     while (true) {
-      const { value, done } = await reader.read()
-      if (done) break
+      const { value, done } = await reader.read();
+      if (done) break;
 
-      buffer += decoder.decode(value, { stream: true })
-      const frames = buffer.split('\n\n')
-      buffer = frames.pop() || ''
+      buffer += decoder.decode(value, { stream: true });
+      const frames = buffer.split('\n\n');
+      buffer = frames.pop() || '';
 
       for (const frame of frames) {
         const line = frame
           .split('\n')
-          .find((l) => l.startsWith('data:'))
-        if (!line) continue
+          .find((l) => l.startsWith('data:'));
+        if (!line) continue;
 
-        const payload = JSON.parse(line.slice(5).trim())
+        const payload = JSON.parse(line.slice(5).trim());
         if (payload.type === 'progress' && onProgress) {
-          onProgress(payload.content || '')
+          onProgress(payload.content || '');
         } else if (payload.type === 'ack' && onAck) {
-          onAck(payload.userMessage)
+          onAck(payload.userMessage);
         } else if (payload.type === 'final') {
           finalData = {
             content: payload.content,
             assistantMessage: payload.assistantMessage,
-          }
+          };
         } else if (payload.type === 'error') {
-          throw new Error(payload.message || i18n.t('api.requestFailed'))
+          throw new Error(payload.message || i18n.t('api.requestFailed'));
         }
       }
     }
 
     if (!finalData) {
-      throw new Error(i18n.t('api.requestFailed'))
+      throw new Error(i18n.t('api.requestFailed'));
     }
-    return finalData
+    return finalData;
   },
 
   subscribeSessionEvents: (sessionId, { onMessage, onError } = {}) => {

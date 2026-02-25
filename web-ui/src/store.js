@@ -165,7 +165,7 @@ export const useMessageStore = create((set, get) => ({
   },
   
   // Send message
-  sendMessage: async (sessionId, content) => {
+  sendMessage: async (sessionId, content, file = null) => {
     if (get().sending) {
       return { aborted: false, ignored: true }
     }
@@ -180,7 +180,12 @@ export const useMessageStore = create((set, get) => ({
       createdAt: new Date().toISOString(),
       sequence: currentMessages.length,
       toolSteps: [],
-      tokenUsage: null
+      tokenUsage: null,
+      files: file ? [{
+        name: file.name,
+        size: file.size,
+        type: file.type
+      }] : []
     }
 
     // Optimistic update: show user message immediately.
@@ -194,6 +199,7 @@ export const useMessageStore = create((set, get) => ({
     })
 
     try {
+      // Send message with file if available
       const response = await api.sendMessageStream(sessionId, content, {
         signal: controller.signal,
         onProgress: (text) => {
@@ -214,6 +220,7 @@ export const useMessageStore = create((set, get) => ({
             return { messages: next }
           })
         },
+        file: file // Pass the file to the API
       })
 
       const assistantMessage = response.assistantMessage

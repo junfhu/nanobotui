@@ -9,23 +9,44 @@ class ApiService {
    * Send a chat message to nanobot
    * @param {string} message - The message to send
    * @param {string} sessionId - The session ID
+   * @param {File} file - Optional file to upload
    * @returns {Promise<Object>} The response from nanobot
    */
-  async chat(message, sessionId = 'web:default') {
+  async chat(message, sessionId = 'web:default', file = null) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message, session_id: sessionId }),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+      if (file) {
+        // 使用 FormData 发送文件和消息
+        const formData = new FormData();
+        formData.append('message', message);
+        formData.append('session_id', sessionId);
+        formData.append('file', file);
+        
+        const response = await fetch(`${API_BASE_URL}/api/chat`, {
+          method: 'POST',
+          body: formData, // 不设置 Content-Type，让浏览器自动设置带boundary
+        });
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        
+        return await response.json();
+      } else {
+        // 原有的纯文本消息发送方式
+        const response = await fetch(`${API_BASE_URL}/api/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ message, session_id: sessionId }),
+        });
+        
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        
+        return await response.json();
       }
-      
-      return await response.json();
     } catch (error) {
       console.error('Chat API error:', error);
       return {
