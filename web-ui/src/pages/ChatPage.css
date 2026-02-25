@@ -354,6 +354,35 @@
   background-color: rgba(24, 144, 255, 0.05);
 }
 
+.voice-button {
+  border-radius: 8px;
+  border: 1px solid var(--nb-border);
+  background-color: var(--nb-surface-strong);
+  transition: all 0.2s ease;
+  color: #52c41a; /* Green color for voice button */
+}
+
+.voice-button:hover:not(:disabled) {
+  border-color: #52c41a;
+  color: #52c41a;
+  background-color: rgba(82, 196, 26, 0.05);
+}
+
+.voice-button.ant-btn-primary {
+  background-color: #52c41a;
+  border-color: #52c41a;
+}
+
+.voice-button.ant-btn-primary:hover:not(:disabled) {
+  background-color: #49aa19;
+  border-color: #49aa19;
+}
+
+.voice-button.ant-btn-danger {
+  background-color: #ff4d4f;
+  border-color: #ff4d4f;
+}
+
 .file-preview-area {
   margin-bottom: 12px;
   padding: 8px 12px;

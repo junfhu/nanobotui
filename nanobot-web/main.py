@@ -39,6 +39,7 @@ from nanobot.config.loader import load_config, get_data_dir
 from nanobot.providers.litellm_provider import LiteLLMProvider
 from nanobot.providers.openai_codex_provider import OpenAICodexProvider
 from nanobot.providers.custom_provider import CustomProvider
+from nanobot.providers.transcription import GroqTranscriptionProvider
 from nanobot.cron.service import CronService
 from nanobot.cron.types import CronJob, CronSchedule
 from nanobot.agent.skills import SkillsLoader, BUILTIN_SKILLS_DIR
@@ -1824,6 +1825,57 @@ async def save_config_compat(config: dict):
             status_code=500,
             content={"error": str(e)}
         )
+
+
+# Voice transcription endpoint
+@app.post("/api/v1/voice/transcribe")
+async def transcribe_voice(file: UploadFile = File(...)):
+    """Transcribe audio file to text using Groq Whisper API."""
+    try:
+        # Create a temporary file to store the uploaded audio
+        import tempfile
+        import os
+        from pathlib import Path
+
+        # Get data directory for temporary files
+        temp_dir = Path(get_data_dir()) / "temp_uploads"
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create temporary file with the uploaded audio
+        temp_file_path = temp_dir / f"temp_transcribe_{uuid.uuid4()}_{file.filename}"
+        with open(temp_file_path, "wb") as temp_file:
+            content = await file.read()
+            temp_file.write(content)
+        
+        try:
+            # Initialize the transcription provider
+            transcriber = GroqTranscriptionProvider()
+            transcription = await transcriber.transcribe(temp_file_path)
+            
+            return {
+                "success": True,
+                "data": {
+                    "text": transcription or "",
+                    "language": "auto",  # Currently using auto-detection
+                    "duration": 0  # Not implemented yet
+                },
+                "error": None
+            }
+        finally:
+            # Clean up the temporary file
+            if temp_file_path.exists():
+                os.remove(temp_file_path)
+                
+    except Exception as e:
+        logger.error(f"Transcription error: {e}")
+        return {
+            "success": False,
+            "data": None,
+            "error": {
+                "code": "TRANSCRIPTION_ERROR",
+                "message": str(e)
+            }
+        }
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Layout, Input, Button, Typography, Avatar, Space, Spin, message, Empty, Modal, ConfigProvider, theme as antdTheme, Upload } from 'antd'
-import { SendOutlined, PlusOutlined, DeleteOutlined, EditOutlined, RobotOutlined, UserOutlined, StopOutlined, PaperClipOutlined } from '@ant-design/icons'
+import { SendOutlined, PlusOutlined, DeleteOutlined, EditOutlined, RobotOutlined, UserOutlined, StopOutlined, PaperClipOutlined, AudioOutlined, AudioMutedOutlined } from '@ant-design/icons'
 import { useOutletContext } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -73,6 +73,145 @@ const ChatPage = () => {
   const [renameTitle, setRenameTitle] = useState('')
   const [sessionToRename, setSessionToRename] = useState(null)
   const messagesEndRef = useRef(null)
+  
+  // Voice recognition states
+  const [isListening, setIsListening] = useState(false)
+  const [recognition, setRecognition] = useState(null)
+  const [mediaRecorder, setMediaRecorder] = useState(null)
+  const [audioChunks, setAudioChunks] = useState([])
+  const [currentTranscript, setCurrentTranscript] = useState('')
+  
+  // Initialize speech recognition
+  useEffect(() => {
+    // Check if browser supports speech recognition
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (SpeechRecognition) {
+      const recognitionInstance = new SpeechRecognition()
+      recognitionInstance.continuous = false
+      recognitionInstance.interimResults = true
+      recognitionInstance.lang = 'zh-CN' // Default to Chinese, can be changed
+      
+      recognitionInstance.onresult = (event) => {
+        let interimTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i];
+          if (result.isFinal) {
+            // Append final result to input message
+            setInputMessage(prev => prev + result[0].transcript);
+          } else {
+            // Store interim result for potential display (though we won't use it directly)
+            interimTranscript += result[0].transcript;
+          }
+        }
+        // Update current transcript for interim results
+        setCurrentTranscript(interimTranscript);
+      }
+      
+      recognitionInstance.onerror = (event) => {
+        console.error('Speech recognition error', event.error)
+        setIsListening(false)
+        message.error(`语音识别错误: ${event.error}`)
+      }
+      
+      recognitionInstance.onend = () => {
+        // Reset the current transcript when recognition ends
+        setCurrentTranscript('');
+        setIsListening(false)
+      }
+      
+      setRecognition(recognitionInstance)
+    }
+    
+    // Cleanup on unmount
+    return () => {
+      if (recognition) {
+        recognition.stop()
+      }
+    }
+  }, [])
+  
+  // Toggle voice recognition
+  const toggleVoiceRecognition = async () => {
+    if (!recognition) {
+      message.error('您的浏览器不支持语音识别')
+      return
+    }
+    
+    if (isListening) {
+      recognition.stop()
+      setIsListening(false)
+    } else {
+      try {
+        recognition.start()
+        setIsListening(true)
+        message.info('开始语音识别，请说话...')
+      } catch (error) {
+        console.error('Error starting speech recognition:', error)
+        message.error('启动语音识别失败')
+      }
+    }
+  }
+  
+  // Alternative: Record audio and send to backend for transcription
+  const toggleAudioRecording = async () => {
+    if (!navigator.mediaDevices || !window.MediaRecorder) {
+      message.error('您的浏览器不支持录音功能')
+      return
+    }
+    
+    if (isListening) {
+      // Stop recording
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop()
+      }
+      setIsListening(false)
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        const recorder = new MediaRecorder(stream)
+        setMediaRecorder(recorder)
+        setAudioChunks([])
+        
+        recorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            setAudioChunks(prev => [...prev, event.data])
+          }
+        }
+        
+        recorder.onstop = async () => {
+          // Combine audio chunks into a blob
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' }) // Using webm which is the default for MediaRecorder
+          
+          try {
+            // Send audio to backend for transcription
+            message.info('音频录制完成，正在转录...')
+            const transcriptionResult = await api.transcribeVoice(audioBlob)
+            const transcriptionText = transcriptionResult.text || ''
+            
+            if (transcriptionText) {
+              setInputMessage(prev => prev + transcriptionText)
+              message.success('语音转文字成功')
+            } else {
+              message.warning('未能转录出文字内容')
+            }
+          } catch (error) {
+            console.error('Transcription error:', error)
+            message.error(`语音转文字失败: ${error.message}`)
+          }
+          
+          // Clean up the stream
+          stream.getTracks().forEach(track => track.stop())
+        }
+        
+        recorder.start()
+        setIsListening(true)
+        message.info('开始录音，请说话...')
+      } catch (error) {
+        console.error('Error accessing microphone:', error)
+        message.error('无法访问麦克风，请检查权限')
+      }
+    }
+  }
 
   // Load sessions on mount
   useEffect(() => {
@@ -484,6 +623,15 @@ const ChatPage = () => {
                 >
                 </Button>
               </Upload>
+              
+              <Button
+                icon={isListening ? <AudioMutedOutlined /> : <AudioOutlined />}
+                className="voice-button"
+                onClick={toggleVoiceRecognition}
+                disabled={!currentSession || sending}
+                type={isListening ? "primary" : "default"}
+                danger={isListening}
+              />
               
               <TextArea
                 value={inputMessage}

@@ -296,4 +296,38 @@ export const api = {
     request(`/skills/${encodeURIComponent(name)}?source=${encodeURIComponent(source)}`, {
       method: 'DELETE',
     }),
+
+  // Voice transcription
+  transcribeVoice: async (audioBlob) => {
+    const token = authStorage.getToken();
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'recording.wav');
+
+    const response = await fetch(`${API_BASE}/voice/transcribe`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({
+        success: false,
+        error: { code: 'NETWORK_ERROR', message: i18n.t('api.networkError') }
+      }));
+      const err = new Error(errorData.error?.message || i18n.t('api.requestFailed'));
+      err.code = errorData.error?.code;
+      throw err;
+    }
+
+    const data = await response.json();
+    if (!data.success) {
+      const err = new Error(data.error?.message || i18n.t('api.requestFailed'));
+      err.code = data.error?.code;
+      throw err;
+    }
+
+    return data.data;
+  },
 }
