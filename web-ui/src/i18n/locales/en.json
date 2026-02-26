@@ -3,6 +3,10 @@
     "networkError": "Network error",
     "requestFailed": "Request failed"
   },
+  "common": {
+    "ok": "OK",
+    "cancel": "Cancel"
+  },
   "chat": {
     "newSession": "New Session",
     "renameSession": "Rename Session",

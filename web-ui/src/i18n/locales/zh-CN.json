@@ -3,6 +3,10 @@
     "networkError": "网络错误",
     "requestFailed": "请求失败"
   },
+  "common": {
+    "ok": "确定",
+    "cancel": "取消"
+  },
   "chat": {
     "newSession": "新建会话",
     "renameSession": "重命名会话",

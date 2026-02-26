@@ -218,6 +218,7 @@ async def init_nanobot():
             )
         
         # Create agent loop
+        logger.info(f"Initializing AgentLoop with max_iterations: {config.agents.defaults.max_tool_iterations}")
         agent_loop = AgentLoop(
             bus=message_bus,
             provider=provider,

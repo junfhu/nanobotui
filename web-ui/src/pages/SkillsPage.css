@@ -56,15 +56,21 @@
 .skill-item {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 12px;
   background-color: var(--nb-surface-strong);
   border: 1px solid var(--nb-border);
   border-radius: 8px;
   padding: 12px;
+  min-height: fit-content;
 }
 
 .skill-main {
+  flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .skill-name {
@@ -120,6 +126,7 @@
   color: #ff4d4f;
 }
 
+/* 在较小屏幕上才使用列布局 */
 @media (max-width: 768px) {
   .skills-page {
     padding: 16px;

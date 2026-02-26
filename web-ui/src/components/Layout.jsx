@@ -17,6 +17,7 @@ const Layout = ({ themeMode = 'dark', onToggleTheme, onLogout, user }) => {
   const [newPassword, setNewPassword] = React.useState('')
   const [confirmPassword, setConfirmPassword] = React.useState('')
   const [savingPwd, setSavingPwd] = React.useState(false)
+  const [messageApi, contextHolder] = message.useMessage()
 
   const langMenuItems = [
     {
@@ -33,23 +34,23 @@ const Layout = ({ themeMode = 'dark', onToggleTheme, onLogout, user }) => {
 
   const submitChangePassword = async () => {
     if (!oldPassword || !newPassword) {
-      message.error(t('auth.fillOldNewPassword'))
+      messageApi.error(t('auth.fillOldNewPassword'))
       return
     }
     if (newPassword !== confirmPassword) {
-      message.error(t('auth.passwordMismatch'))
+      messageApi.error(t('auth.passwordMismatch'))
       return
     }
     setSavingPwd(true)
     try {
       await api.changePassword(oldPassword, newPassword)
-      message.success(t('auth.passwordUpdated'))
+      messageApi.success(t('auth.passwordUpdated'))
       setOpenChangePwd(false)
-      setOldPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
+      setOldPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
     } catch (e) {
-      message.error(e?.message || t('auth.changePasswordFailed'))
+      messageApi.error(e?.message || t('auth.changePasswordFailed'))
     } finally {
       setSavingPwd(false)
     }
@@ -57,6 +58,7 @@ const Layout = ({ themeMode = 'dark', onToggleTheme, onLogout, user }) => {
 
   return (
     <AntLayout className={`layout ${isDark ? 'theme-dark' : 'theme-light'}`}>
+      {contextHolder}
       <Sider width={200} theme={isDark ? 'dark' : 'light'} className="sidebar">
         <div className="sidebar-header">
           <h1>🐈 Nanobot</h1>
@@ -116,15 +118,23 @@ const Layout = ({ themeMode = 'dark', onToggleTheme, onLogout, user }) => {
       <Modal
         title={t('auth.changePasswordTitle')}
         open={openChangePwd}
-        onCancel={() => setOpenChangePwd(false)}
+        onCancel={() => {
+          setOpenChangePwd(false);
+          setOldPassword('');
+          setNewPassword('');
+          setConfirmPassword('');
+        }}
         onOk={submitChangePassword}
         okButtonProps={{ loading: savingPwd }}
+        okText={t('common.ok')}
+        cancelText={t('common.cancel')}
       >
         <Input.Password
           value={oldPassword}
           onChange={(e) => setOldPassword(e.target.value)}
           placeholder={t('auth.oldPassword')}
           style={{ marginBottom: 10 }}
+          onPressEnter={submitChangePassword}
         />
         <Input.Password
           value={newPassword}
@@ -136,6 +146,7 @@ const Layout = ({ themeMode = 'dark', onToggleTheme, onLogout, user }) => {
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           placeholder={t('auth.confirmNewPassword')}
+          onPressEnter={submitChangePassword}
         />
       </Modal>
     </AntLayout>
