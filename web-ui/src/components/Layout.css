@@ -51,7 +51,7 @@
 }
 
 .nav-item.active {
-  background-color: #1890ff;
+  background-color: var(--nb-primary);
   color: white;
 }
 

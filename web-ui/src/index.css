@@ -34,25 +34,25 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --nb-bg: #2b2a33;
-  --nb-panel: #23222b;
-  --nb-surface: #2b2a33;
-  --nb-surface-strong: #32313c;
-  --nb-bubble-assistant: #3a3944;
+  --nb-bg: #0d0d0d;
+  --nb-panel: #121212;
+  --nb-surface: #1a1a1a;
+  --nb-surface-strong: #1f1f1f;
+  --nb-bubble-assistant: #1f1f1f;
   --nb-bubble-user: #1890ff;
   --nb-bubble-user-text: #ffffff;
   --nb-bubble-user-border: #3aa0ff;
   --nb-bubble-user-accent: #ffffff;
   --nb-bubble-user-meta: rgba(255, 255, 255, 0.85);
-  --nb-border: #5b5b66;
-  --nb-border-strong: #8f8f9d;
-  --nb-hover: #32313c;
-  --nb-text: #fbfbfe;
-  --nb-text-soft: #cfcfd8;
-  --nb-text-muted: #8f8f9d;
-  --nb-code-bg: rgba(255, 255, 255, 0.2);
-  --nb-pre-bg: rgba(255, 255, 255, 0.12);
-  --nb-shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.18);
+  --nb-border: #333333;
+  --nb-border-strong: #444444;
+  --nb-hover: #1f1f1f;
+  --nb-text: #ffffff;
+  --nb-text-soft: #cccccc;
+  --nb-text-muted: #888888;
+  --nb-code-bg: rgba(255, 255, 255, 0.1);
+  --nb-pre-bg: rgba(255, 255, 255, 0.08);
+  --nb-shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 * {

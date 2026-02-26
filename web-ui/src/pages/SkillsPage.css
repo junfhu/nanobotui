@@ -44,7 +44,7 @@
 
 .skills-filter:focus {
   outline: none;
-  border-color: #1677ff;
+  border-color: var(--nb-primary);
 }
 
 .skills-list {
@@ -97,9 +97,9 @@
 
 .delete-btn {
   align-self: flex-start;
-  border: 1px solid #ff4d4f;
+  border: 1px solid var(--nb-danger);
   background: transparent;
-  color: #ff4d4f;
+  color: var(--nb-danger);
   border-radius: 6px;
   padding: 6px 10px;
   cursor: pointer;
@@ -123,7 +123,7 @@
 }
 
 .skills-page .error-message {
-  color: #ff4d4f;
+  color: var(--nb-danger);
 }
 
 /* 在较小屏幕上才使用列布局 */

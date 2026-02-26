@@ -40,7 +40,7 @@
 }
 
 .tab-button.active {
-  background-color: #1890ff;
+  background-color: var(--nb-primary);
   color: white;
 }
 
@@ -87,14 +87,14 @@
 
 .form-input:focus {
   outline: none;
-  border-color: #1890ff;
+  border-color: var(--nb-primary);
   box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
 }
 
-.form-help-text {
-  margin-top: 6px;
-  font-size: 12px;
-  color: var(--nb-text-muted);
+.form-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--nb-primary);
 }
 
 .form-checkbox {
@@ -104,63 +104,10 @@
   margin-bottom: 8px;
 }
 
-.form-checkbox input[type="checkbox"] {
-  width: 16px;
-  height: 16px;
-  accent-color: #1890ff;
-}
-
-.form-checkbox label {
-  margin: 0;
-  cursor: pointer;
-}
-
-/* Nested Form */
-.nested-form {
-  padding-left: 24px;
-  margin-top: 8px;
-}
-
-/* Provider Cards */
-.providers-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.provider-card {
-  padding: 12px;
-  border: 1px solid var(--nb-border);
-  border-radius: 8px;
-  background-color: var(--nb-surface-strong);
-}
-
-.provider-card h4 {
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 4px;
-  color: var(--nb-text);
-}
-
-.provider-card p {
-  font-size: 12px;
-  color: var(--nb-text-muted);
-  margin: 4px 0;
-}
-
-/* Provider Section */
-.provider-section {
-  margin-bottom: 20px;
-  padding: 12px;
-  border: 1px solid var(--nb-border);
-  border-radius: 8px;
-  background-color: var(--nb-surface);
-}
-
 .provider-name {
   font-size: 18px !important;
   font-weight: 600 !important;
-  color: #1890ff !important;
+  color: var(--nb-primary) !important;
   margin-bottom: 12px !important;
 }
 
@@ -199,7 +146,7 @@
 }
 
 .save-button:not(:disabled) {
-  background-color: #1890ff;
+  background-color: var(--nb-primary);
   color: white;
 }
 
@@ -240,7 +187,7 @@
 .mcp-server-section h5 {
   font-size: 14px;
   font-weight: 600;
-  color: #1890ff;
+  color: var(--nb-primary);
   margin-bottom: 8px;
 }
 
@@ -255,7 +202,7 @@
 .error-message {
   text-align: center;
   padding: 40px 0;
-  color: #ff4d4f;
+  color: var(--nb-danger);
   font-size: 14px;
 }
 
@@ -264,7 +211,7 @@
   border: 1px solid rgba(82, 196, 26, 0.3);
   padding: 12px;
   border-radius: 8px;
-  color: #52c41a;
+  color: var(--nb-success);
   font-size: 14px;
   margin-bottom: 16px;
 }

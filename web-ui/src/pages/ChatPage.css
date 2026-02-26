@@ -45,7 +45,7 @@
 
 .session-item.active {
   background-color: rgba(24, 144, 255, 0.1);
-  border-left: 3px solid #1890ff;
+  border-left: 3px solid var(--nb-primary);
   border-color: rgba(24, 144, 255, 0.3);
   box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
 }
@@ -85,7 +85,7 @@
 }
 
 .session-action-btn:hover {
-  color: #1890ff;
+  color: var(--nb-primary);
 }
 
 .chat-header {
@@ -96,7 +96,7 @@
 
 .chat-session-title {
   font-size: 16px;
-  color: var(--nb-text) !important;
+  color: var(--nb-text);
 }
 
 .chat-content {
@@ -147,7 +147,7 @@
 }
 
 .message-wrapper.user .message-bubble {
-  background-color: var(--nb-bubble-user) !important;
+  background-color: var(--nb-bubble-user);
   color: var(--nb-bubble-user-text);
   border: 1px solid var(--nb-bubble-user-border);
   border-radius: 16px 16px 6px 16px;
@@ -170,6 +170,10 @@
   position: relative;
   transition: all 0.2s ease;
   box-shadow: 0 6px 16px rgba(10, 20, 40, 0.08);
+}
+
+:root[data-theme='dark'] .message-bubble {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
 }
 
 .message-wrapper.user .message-bubble:hover {
@@ -208,21 +212,21 @@
 }
 
 .message-avatar.user {
-  background-color: #1890ff;
+  background-color: var(--nb-primary);
   color: white;
 }
 
 .message-avatar.assistant {
-  background-color: #52c41a;
+  background-color: var(--nb-success);
   color: white;
 }
 
 .message-speaker.user {
-  color: var(--nb-bubble-user-accent) !important;
+  color: var(--nb-bubble-user-accent);
 }
 
 .message-speaker.assistant {
-  color: #52c41a !important;
+  color: var(--nb-success);
 }
 
 .message-time {
@@ -244,6 +248,11 @@
   background-color: transparent;
   color: inherit;
   margin: 0;
+}
+
+.message-wrapper.assistant .markdown-body {
+  background-color: transparent;
+  color: var(--nb-text);
 }
 
 .message-wrapper.user .markdown-body {
@@ -270,7 +279,7 @@
   top: 8px;
   right: 8px;
   border: 1px solid var(--nb-border);
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--nb-surface-strong);
   color: var(--nb-text);
   font-size: 12px;
   padding: 4px 8px;
@@ -284,49 +293,106 @@
   border-color: var(--nb-border-strong);
 }
 
+/* Dark theme overrides for markdown content */
 :root[data-theme='dark'] .markdown-body {
-  color: #c9d1d9;
+  color: var(--nb-text);
 }
 
 :root[data-theme='dark'] .markdown-body a {
-  color: #58a6ff;
+  color: var(--nb-primary);
 }
 
-:root[data-theme='dark'] .markdown-body pre,
-:root[data-theme='dark'] .markdown-body code {
-  background-color: #0d1117 !important;
-  color: #c9d1d9 !important;
+:root[data-theme='dark'] .markdown-body pre {
+  background-color: var(--nb-pre-bg) !important;
+  color: var(--nb-text) !important;
+  border: 1px solid var(--nb-border);
+  border-radius: 6px;
+}
+
+:root[data-theme='dark'] .markdown-body pre code,
+:root[data-theme='dark'] .markdown-body :not(pre) > code {
+  background-color: transparent !important;
+  color: var(--nb-text) !important;
 }
 
 :root[data-theme='dark'] .markdown-body table,
-:root[data-theme='dark'] .markdown-body td,
-:root[data-theme='dark'] .markdown-body th {
-  border-color: #30363d !important;
+:root[data-theme='dark'] .markdown-body table tr,
+:root[data-theme='dark'] .markdown-body table td,
+:root[data-theme='dark'] .markdown-body table th,
+:root[data-theme='dark'] .markdown-body table thead,
+:root[data-theme='dark'] .markdown-body table tbody {
+  background-color: transparent !important;
+  background: transparent !important;
+  border-color: var(--nb-border) !important;
+  color: var(--nb-text) !important;
+}
+
+:root[data-theme='dark'] .markdown-body table {
+  background-color: #1f1f1f !important;
+  background: #1f1f1f !important;
 }
 
 :root[data-theme='dark'] .markdown-body blockquote {
-  color: #8b949e;
-  border-left-color: #30363d !important;
+  color: var(--nb-text-muted);
+  border-left-color: var(--nb-border) !important;
 }
 
 :root[data-theme='dark'] .markdown-body hr {
-  background-color: #30363d !important;
+  background-color: var(--nb-border) !important;
 }
 
 :root[data-theme='dark'] .markdown-body .hljs {
-  background: #0d1117 !important;
-  color: #c9d1d9 !important;
+  background: transparent !important;
+  color: var(--nb-text) !important;
+}
+
+:root[data-theme='dark'] .markdown-body .hljs span,
+:root[data-theme='dark'] .markdown-body .hljs .hljs-attr,
+:root[data-theme='dark'] .markdown-body .hljs .hljs-string,
+:root[data-theme='dark'] .markdown-body .hljs .hljs-keyword,
+:root[data-theme='dark'] .markdown-body .hljs .hljs-function,
+:root[data-theme='dark'] .markdown-body .hljs .hljs-class,
+:root[data-theme='dark'] .markdown-body .hljs .hljs-title,
+:root[data-theme='dark'] .markdown-body .hljs .hljs-variable,
+:root[data-theme='dark'] .markdown-body .hljs .hljs-number,
+:root[data-theme='dark'] .markdown-body .hljs .hljs-comment {
+  color: var(--nb-text) !important;
 }
 
 :root[data-theme='dark'] .code-copy-button {
-  background: rgba(13, 17, 23, 0.9);
-  color: #c9d1d9;
-  border-color: #30363d;
+  background: var(--nb-surface-strong);
+  color: var(--nb-text);
+  border-color: var(--nb-border);
 }
 
 :root[data-theme='dark'] .code-copy-button:hover {
-  background: #161b22;
-  border-color: #3d444d;
+  background: var(--nb-surface);
+  border-color: var(--nb-border-strong);
+}
+
+/* Additional dark theme overrides */
+:root[data-theme='dark'] .message-wrapper.user .message-bubble {
+  background-color: var(--nb-bubble-user);
+  border-color: var(--nb-bubble-user-border);
+  color: var(--nb-bubble-user-text);
+}
+
+:root[data-theme='dark'] .message-wrapper.assistant .message-bubble {
+  background-color: var(--nb-bubble-assistant);
+  border-color: var(--nb-border);
+  color: var(--nb-text) !important;
+}
+
+:root[data-theme='dark'] .message-wrapper.user .markdown-body a {
+  color: var(--nb-bubble-user-text);
+}
+
+:root[data-theme='dark'] .message-time {
+  color: var(--nb-text-muted);
+}
+
+:root[data-theme='dark'] .message-wrapper.user .message-time {
+  color: var(--nb-bubble-user-meta);
 }
 
 .chat-input-container {
@@ -349,8 +415,8 @@
 }
 
 .upload-button:hover:not(:disabled) {
-  border-color: #1890ff;
-  color: #1890ff;
+  border-color: var(--nb-primary);
+  color: var(--nb-primary);
   background-color: rgba(24, 144, 255, 0.05);
 }
 
@@ -359,18 +425,18 @@
   border: 1px solid var(--nb-border);
   background-color: var(--nb-surface-strong);
   transition: all 0.2s ease;
-  color: #52c41a; /* Green color for voice button */
+  color: var(--nb-success); /* Green color for voice button */
 }
 
 .voice-button:hover:not(:disabled) {
-  border-color: #52c41a;
-  color: #52c41a;
+  border-color: var(--nb-success);
+  color: var(--nb-success);
   background-color: rgba(82, 196, 26, 0.05);
 }
 
 .voice-button.ant-btn-primary {
-  background-color: #52c41a;
-  border-color: #52c41a;
+  background-color: var(--nb-success);
+  border-color: var(--nb-success);
 }
 
 .voice-button.ant-btn-primary:hover:not(:disabled) {
@@ -379,8 +445,8 @@
 }
 
 .voice-button.ant-btn-danger {
-  background-color: #ff4d4f;
-  border-color: #ff4d4f;
+  background-color: var(--nb-danger);
+  border-color: var(--nb-danger);
 }
 
 .file-preview-area {
@@ -433,7 +499,7 @@
 }
 
 .chat-input:focus {
-  border-color: #1890ff;
+  border-color: var(--nb-primary);
   box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
 }
 
@@ -474,7 +540,7 @@
 .error-messages {
   text-align: center;
   padding: 40px 0;
-  color: #ff4d4f;
+  color: var(--nb-danger);
   font-size: 14px;
   line-height: 1.5;
 }
