@@ -130,15 +130,19 @@
 }
 
 .messages-container {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  display: block;
+}
+
+.messages-spacer {
+  width: 100%;
+  pointer-events: none;
 }
 
 .message-wrapper {
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  margin-bottom: 16px;
   animation: fadeIn 0.3s ease;
 }
 

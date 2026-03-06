@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react'
+import React, { useEffect, useLayoutEffect, useState, useRef, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Layout, Input, Button, Typography, Avatar, Space, Spin, message, Empty, Modal, ConfigProvider, theme as antdTheme, Upload } from 'antd'
 import { SendOutlined, PlusOutlined, DeleteOutlined, EditOutlined, RobotOutlined, UserOutlined, StopOutlined, PaperClipOutlined, AudioOutlined, AudioMutedOutlined } from '@ant-design/icons'
@@ -39,6 +39,37 @@ const copyTextToClipboard = async (text) => {
 }
 
 const EMPTY_FINAL_PREFIX = '__NB_I18N_EMPTY_FINAL__:'
+const AUTO_SCROLL_THRESHOLD = 96
+const VIRTUAL_OVERSCAN_PX = 800
+const DEFAULT_VIEWPORT_HEIGHT = 800
+const MESSAGE_VERTICAL_GAP = 16
+const DEFAULT_MESSAGE_HEIGHT = 140
+
+const estimateMessageHeight = (msg) => {
+  const content = msg?.content || ''
+  const lineCount = content.split('\n').length
+  const contentWeight = Math.ceil(content.length / 48) * 18
+  const codeBlockWeight = (content.match(/```/g) || []).length * 48
+  const fileWeight = Array.isArray(msg?.files) ? msg.files.length * 28 : 0
+  const roleBase = msg?.role === 'user' ? 92 : 108
+  return Math.max(DEFAULT_MESSAGE_HEIGHT, roleBase + lineCount * 10 + contentWeight + codeBlockWeight + fileWeight)
+}
+
+const findFirstVisibleIndex = (offsets, target) => {
+  let low = 0
+  let high = offsets.length - 1
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2)
+    if (offsets[mid] < target) {
+      low = mid + 1
+    } else {
+      high = mid - 1
+    }
+  }
+
+  return low
+}
 
 const ChatPage = () => {
   const { t } = useTranslation()
@@ -72,7 +103,18 @@ const ChatPage = () => {
   const [showRenameModal, setShowRenameModal] = useState(false)
   const [renameTitle, setRenameTitle] = useState('')
   const [sessionToRename, setSessionToRename] = useState(null)
-  const messagesEndRef = useRef(null)
+  const messagesViewportRef = useRef(null)
+  const messagesListRef = useRef(null)
+  const initialScrollPendingRef = useRef(true)
+  const activeSessionIdRef = useRef(null)
+  const lastRenderedMessageCountRef = useRef(0)
+  const shouldAutoScrollRef = useRef(true)
+  const measuredHeightsRef = useRef(new Map())
+  const [heightVersion, setHeightVersion] = useState(0)
+  const [viewportState, setViewportState] = useState({
+    scrollTop: 0,
+    viewportHeight: 0
+  })
   
   // Voice recognition states
   const [isListening, setIsListening] = useState(false)
@@ -226,6 +268,23 @@ const ChatPage = () => {
     }
   }, [currentSession])
 
+  useEffect(() => {
+    const nextSessionId = currentSession?.id ?? null
+    if (activeSessionIdRef.current === nextSessionId) {
+      return
+    }
+    activeSessionIdRef.current = nextSessionId
+    initialScrollPendingRef.current = true
+    lastRenderedMessageCountRef.current = 0
+    shouldAutoScrollRef.current = true
+    measuredHeightsRef.current = new Map()
+    setHeightVersion((prev) => prev + 1)
+    setViewportState({
+      scrollTop: 0,
+      viewportHeight: 0
+    })
+  }, [currentSession?.id])
+
   // Real-time session updates (e.g. cron reminders)
   useEffect(() => {
     if (!currentSession) return
@@ -242,13 +301,195 @@ const ChatPage = () => {
     return () => source.close()
   }, [currentSession?.id])
 
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages, sending])
+  const measuredHeights = useMemo(
+    () => messages.map((msg) => measuredHeightsRef.current.get(msg.id) ?? estimateMessageHeight(msg)),
+    [messages, heightVersion]
+  )
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  const virtualMetrics = useMemo(() => {
+    const offsets = []
+    let totalHeight = 0
+
+    for (let i = 0; i < measuredHeights.length; i += 1) {
+      offsets.push(totalHeight)
+      totalHeight += measuredHeights[i] + MESSAGE_VERTICAL_GAP
+    }
+
+    return { offsets, totalHeight }
+  }, [measuredHeights])
+
+  const getVirtualRange = (scrollTop, viewportHeight) => {
+    if (messages.length === 0) {
+      return { start: 0, end: 0 }
+    }
+
+    const safeViewportHeight = Math.max(viewportHeight || DEFAULT_VIEWPORT_HEIGHT, 1)
+    const from = Math.max(0, scrollTop - VIRTUAL_OVERSCAN_PX)
+    const to = scrollTop + safeViewportHeight + VIRTUAL_OVERSCAN_PX
+    const start = Math.min(
+      messages.length,
+      findFirstVisibleIndex(virtualMetrics.offsets, from)
+    )
+    let end = Math.min(
+      messages.length,
+      findFirstVisibleIndex(virtualMetrics.offsets, to)
+    )
+
+    if (end < messages.length) {
+      end += 1
+    }
+
+    if (end <= start) {
+      end = Math.min(messages.length, start + 1)
+    }
+
+    return { start, end }
+  }
+
+  const effectiveViewportHeight = (
+    viewportState.viewportHeight ||
+    messagesViewportRef.current?.clientHeight ||
+    DEFAULT_VIEWPORT_HEIGHT
+  )
+  const maxScrollTop = Math.max(0, virtualMetrics.totalHeight - effectiveViewportHeight)
+  const effectiveScrollTop = initialScrollPendingRef.current
+    ? maxScrollTop
+    : Math.min(viewportState.scrollTop, maxScrollTop)
+  const virtualRange = getVirtualRange(effectiveScrollTop, effectiveViewportHeight)
+  const visibleMessages = useMemo(
+    () => messages.slice(virtualRange.start, virtualRange.end),
+    [messages, virtualRange.end, virtualRange.start]
+  )
+  const topSpacerHeight = virtualMetrics.offsets[virtualRange.start] || 0
+  const bottomSpacerHeight = Math.max(
+    0,
+    virtualMetrics.totalHeight - (
+      virtualMetrics.offsets[virtualRange.end] || virtualMetrics.totalHeight
+    )
+  )
+
+  const syncViewportState = () => {
+    const viewport = messagesViewportRef.current
+    if (!viewport) {
+      return
+    }
+
+    setViewportState((prev) => {
+      const next = {
+        scrollTop: viewport.scrollTop,
+        viewportHeight: viewport.clientHeight
+      }
+      if (
+        prev.scrollTop === next.scrollTop &&
+        prev.viewportHeight === next.viewportHeight
+      ) {
+        return prev
+      }
+      return next
+    })
+  }
+
+  const measureRenderedMessages = () => {
+    const listNode = messagesListRef.current
+    if (!listNode) {
+      return false
+    }
+
+    let changed = false
+    const nextHeights = new Map(measuredHeightsRef.current)
+    const messageNodes = listNode.querySelectorAll('[data-message-id]')
+
+    messageNodes.forEach((node) => {
+      const messageId = node.getAttribute('data-message-id')
+      if (!messageId) {
+        return
+      }
+
+      const measuredHeight = Math.ceil(node.getBoundingClientRect().height)
+      const cachedHeight = nextHeights.get(messageId)
+      if (cachedHeight !== measuredHeight) {
+        nextHeights.set(messageId, measuredHeight)
+        changed = true
+      }
+    })
+
+    if (changed) {
+      measuredHeightsRef.current = nextHeights
+      setHeightVersion((prev) => prev + 1)
+    }
+
+    return changed
+  }
+
+  useLayoutEffect(() => {
+    const viewport = messagesViewportRef.current
+    if (!viewport || messagesLoading) {
+      return
+    }
+
+    measureRenderedMessages()
+
+    if (messages.length === 0) {
+      lastRenderedMessageCountRef.current = 0
+      syncViewportState()
+      return
+    }
+
+    if (initialScrollPendingRef.current) {
+      viewport.scrollTop = viewport.scrollHeight
+      initialScrollPendingRef.current = false
+      shouldAutoScrollRef.current = true
+      lastRenderedMessageCountRef.current = messages.length
+      syncViewportState()
+      return
+    }
+
+    if (messages.length > lastRenderedMessageCountRef.current && shouldAutoScrollRef.current) {
+      scrollToBottom(sending ? 'smooth' : 'auto')
+    }
+
+    lastRenderedMessageCountRef.current = messages.length
+    syncViewportState()
+  }, [messages.length, messagesLoading, sending, heightVersion, virtualRange.end, virtualRange.start])
+
+  useEffect(() => {
+    const viewport = messagesViewportRef.current
+    if (!viewport) {
+      return
+    }
+
+    syncViewportState()
+
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', syncViewportState)
+      return () => window.removeEventListener('resize', syncViewportState)
+    }
+
+    const observer = new ResizeObserver(() => {
+      measureRenderedMessages()
+      syncViewportState()
+    })
+    observer.observe(viewport)
+    return () => observer.disconnect()
+  }, [])
+
+  const scrollToBottom = (behavior = 'smooth') => {
+    const viewport = messagesViewportRef.current
+    if (!viewport) {
+      return
+    }
+    viewport.scrollTo({ top: viewport.scrollHeight, behavior })
+  }
+
+  const handleMessagesScroll = () => {
+    const viewport = messagesViewportRef.current
+    if (!viewport) {
+      return
+    }
+
+    const distanceFromBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight
+    shouldAutoScrollRef.current = distanceFromBottom <= AUTO_SCROLL_THRESHOLD
+    syncViewportState()
   }
 
   // Handle create session
@@ -411,10 +652,18 @@ const ChatPage = () => {
   }
 
   const renderedMessages = useMemo(() => (
-    <div className="messages-container">
-      {messages.map((msg) => (
+    <div className="messages-container" ref={messagesListRef}>
+      {topSpacerHeight > 0 && (
+        <div
+          className="messages-spacer"
+          style={{ height: `${topSpacerHeight}px` }}
+          aria-hidden="true"
+        />
+      )}
+      {visibleMessages.map((msg) => (
         <div
           key={msg.id}
+          data-message-id={msg.id}
           className={`message-wrapper ${msg.role}`}
         >
           <div className="message-bubble">
@@ -445,6 +694,13 @@ const ChatPage = () => {
           </div>
         </div>
       ))}
+      {bottomSpacerHeight > 0 && (
+        <div
+          className="messages-spacer"
+          style={{ height: `${bottomSpacerHeight}px` }}
+          aria-hidden="true"
+        />
+      )}
       {sending && (
         <div className="message-wrapper assistant">
           <div className="message-bubble">
@@ -472,9 +728,8 @@ const ChatPage = () => {
           </div>
         </div>
       )}
-      <div ref={messagesEndRef} />
     </div>
-  ), [messages, sending, progress, t])
+  ), [bottomSpacerHeight, progress, sending, t, topSpacerHeight, visibleMessages])
 
   return (
     <ConfigProvider theme={antTheme}>
@@ -557,7 +812,11 @@ const ChatPage = () => {
             </Space>
           </Header>
 
-          <Content className="chat-content">
+          <Content
+            className="chat-content"
+            ref={messagesViewportRef}
+            onScroll={handleMessagesScroll}
+          >
             {!currentSession ? (
               <div className="empty-chat">
                 <Empty
