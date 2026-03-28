@@ -1242,6 +1242,15 @@ async def send_message_stream_endpoint(session_id: str, request: Request):
             last_progress = update
             await queue.put({"type": "progress", "content": update})
 
+        async def on_stream(delta: str) -> None:
+            """Token-by-token streaming callback."""
+            if delta:
+                await queue.put({"type": "stream", "content": delta})
+
+        async def on_stream_end(**kwargs) -> None:
+            """Signal that token streaming has finished."""
+            await queue.put({"type": "stream_end"})
+
         async def run_agent():
             try:
                 if not NANOBOT_AVAILABLE or agent_loop is None:
@@ -1255,6 +1264,8 @@ async def send_message_stream_endpoint(session_id: str, request: Request):
                         channel="web",
                         chat_id=session_id,
                         on_progress=on_progress,
+                        on_stream=on_stream,
+                        on_stream_end=on_stream_end,
                     )
                     ai_response = _normalize_agent_response(ai_response, session_id)
 

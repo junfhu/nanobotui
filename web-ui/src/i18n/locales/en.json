@@ -37,7 +37,21 @@
     "emptyFinalResponse": "Task finished but no final reply was generated. Tools executed this run: {{count}}. This is usually caused by too many tool iterations. Go to Config > Agent and increase Max Tool Iterations, then retry.",
     "error": "Error: {{message}}",
     "fileSelected": "File selected: {{fileName}}",
-    "attachFile": "Attach file"
+    "attachFile": "Attach file",
+    "searchSessions": "Search sessions...",
+    "exportMarkdown": "Export as Markdown",
+    "exportJSON": "Export as JSON",
+    "voiceRecognitionError": "Voice recognition error: {{error}}",
+    "voiceNotSupported": "Your browser does not support voice recognition",
+    "voiceListening": "Listening, please speak...",
+    "voiceStartFailed": "Failed to start voice recognition",
+    "recordingNotSupported": "Your browser does not support audio recording",
+    "audioTranscribing": "Recording complete, transcribing...",
+    "transcriptionSuccess": "Transcription successful",
+    "transcriptionEmpty": "No text was transcribed",
+    "transcriptionFailed": "Transcription failed: {{error}}",
+    "recordingStarted": "Recording started, please speak...",
+    "microphoneAccessDenied": "Cannot access microphone, please check permissions"
   },
   "config": {
     "save": "Save",

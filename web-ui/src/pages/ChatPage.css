@@ -18,6 +18,11 @@
   border-bottom: 1px solid var(--nb-border);
 }
 
+.sider-search {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--nb-border);
+}
+
 .sessions-list {
   flex: 1;
   overflow-y: auto;
@@ -92,6 +97,14 @@
   background-color: var(--nb-panel);
   border-bottom: 1px solid var(--nb-border);
   padding: 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.chat-header-actions {
+  display: flex;
+  gap: 4px;
 }
 
 .chat-session-title {
@@ -692,4 +705,20 @@
 .sessions-list::-webkit-scrollbar-thumb:hover,
 .chat-content::-webkit-scrollbar-thumb:hover {
   background: var(--nb-border-strong);
+}
+
+/* Streaming cursor animation */
+.streaming-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1.1em;
+  background-color: var(--nb-primary, #1890ff);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: blink-cursor 0.8s step-end infinite;
+}
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }

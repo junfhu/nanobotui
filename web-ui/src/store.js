@@ -104,6 +104,8 @@ export const useMessageStore = create((set, get) => ({
   loading: false,
   sending: false,
   progress: '',
+  streamContent: '',
+  streaming: false,
   abortController: null,
   error: null,
   
@@ -194,6 +196,8 @@ export const useMessageStore = create((set, get) => ({
       messages: [...currentMessages, tempUserMessage],
       sending: true,
       progress: '',
+      streamContent: '',
+      streaming: false,
       abortController: controller,
       error: null
     })
@@ -204,6 +208,15 @@ export const useMessageStore = create((set, get) => ({
         signal: controller.signal,
         onProgress: (text) => {
           set({ progress: text || '' })
+        },
+        onStream: (delta) => {
+          set((state) => ({
+            streamContent: state.streamContent + delta,
+            streaming: true,
+          }))
+        },
+        onStreamEnd: () => {
+          set({ streaming: false })
         },
         onAck: (userMessage) => {
           if (!userMessage?.id) return
@@ -226,21 +239,23 @@ export const useMessageStore = create((set, get) => ({
       const assistantMessage = response.assistantMessage
       set((state) => {
         if (assistantMessage?.id && state.messages.some((m) => m.id === assistantMessage.id)) {
-          return { sending: false, progress: '' }
+          return { sending: false, progress: '', streamContent: '', streaming: false }
         }
         return {
           messages: [...state.messages, assistantMessage],
           sending: false,
-          progress: ''
+          progress: '',
+          streamContent: '',
+          streaming: false,
         }
       })
       return response
     } catch (error) {
       if (error?.name === 'AbortError') {
-        set({ sending: false, progress: '', abortController: null })
+        set({ sending: false, progress: '', streamContent: '', streaming: false, abortController: null })
         return { aborted: true }
       }
-      set({ error: error.message, sending: false, progress: '', abortController: null })
+      set({ error: error.message, sending: false, progress: '', streamContent: '', streaming: false, abortController: null })
       throw error
     } finally {
       set((state) => {
@@ -262,7 +277,7 @@ export const useMessageStore = create((set, get) => ({
   
   // Clear messages
   clearMessages: () => {
-    set({ messages: [], progress: '', abortController: null })
+    set({ messages: [], progress: '', streamContent: '', streaming: false, abortController: null })
   }
 }))
 

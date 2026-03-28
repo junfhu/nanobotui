@@ -99,7 +99,7 @@ export const api = {
       signal,
     }),
 
-  sendMessageStream: async (sessionId, content, { onProgress, onAck, signal, file } = {}) => {
+  sendMessageStream: async (sessionId, content, { onProgress, onAck, onStream, onStreamEnd, signal, file } = {}) => {
     let response;
     
     if (file) {
@@ -179,6 +179,10 @@ export const api = {
         const payload = JSON.parse(line.slice(5).trim());
         if (payload.type === 'progress' && onProgress) {
           onProgress(payload.content || '');
+        } else if (payload.type === 'stream' && onStream) {
+          onStream(payload.content || '');
+        } else if (payload.type === 'stream_end' && onStreamEnd) {
+          onStreamEnd();
         } else if (payload.type === 'ack' && onAck) {
           onAck(payload.userMessage);
         } else if (payload.type === 'final') {

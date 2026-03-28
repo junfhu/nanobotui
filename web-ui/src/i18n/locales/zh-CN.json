@@ -37,7 +37,21 @@
     "emptyFinalResponse": "任务执行完成，但未生成最终回复。本次已执行工具次数：{{count}}。通常是工具调用轮次过多导致。请在 配置 > Agent 将\"最大工具迭代次数\"调高后重试。",
     "error": "错误：{{message}}",
     "fileSelected": "已选择文件：{{fileName}}",
-    "attachFile": "附加文件"
+    "attachFile": "附加文件",
+    "searchSessions": "搜索会话...",
+    "exportMarkdown": "导出为 Markdown",
+    "exportJSON": "导出为 JSON",
+    "voiceRecognitionError": "语音识别错误：{{error}}",
+    "voiceNotSupported": "您的浏览器不支持语音识别",
+    "voiceListening": "开始语音识别，请说话...",
+    "voiceStartFailed": "启动语音识别失败",
+    "recordingNotSupported": "您的浏览器不支持录音功能",
+    "audioTranscribing": "音频录制完成，正在转录...",
+    "transcriptionSuccess": "语音转文字成功",
+    "transcriptionEmpty": "未能转录出文字内容",
+    "transcriptionFailed": "语音转文字失败：{{error}}",
+    "recordingStarted": "开始录音，请说话...",
+    "microphoneAccessDenied": "无法访问麦克风，请检查权限"
   },
   "config": {
     "save": "保存",

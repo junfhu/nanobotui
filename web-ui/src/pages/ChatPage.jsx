@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useState, useRef, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Layout, Input, Button, Typography, Avatar, Space, Spin, message, Empty, Modal, ConfigProvider, theme as antdTheme, Upload } from 'antd'
-import { SendOutlined, PlusOutlined, DeleteOutlined, EditOutlined, RobotOutlined, UserOutlined, StopOutlined, PaperClipOutlined, AudioOutlined, AudioMutedOutlined } from '@ant-design/icons'
+import { SendOutlined, PlusOutlined, DeleteOutlined, EditOutlined, RobotOutlined, UserOutlined, StopOutlined, PaperClipOutlined, AudioOutlined, AudioMutedOutlined, SearchOutlined, DownloadOutlined } from '@ant-design/icons'
 import { useOutletContext } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -91,6 +91,8 @@ const ChatPage = () => {
     loading: messagesLoading,
     sending,
     progress,
+    streamContent,
+    streaming,
     error: messagesError,
     loadMessages,
     appendIncomingMessage,
@@ -100,11 +102,13 @@ const ChatPage = () => {
   } = useMessageStore()
   const [inputMessage, setInputMessage] = useState('')
   const [selectedFile, setSelectedFile] = useState(null)
+  const [sessionFilter, setSessionFilter] = useState('')
   const [showRenameModal, setShowRenameModal] = useState(false)
   const [renameTitle, setRenameTitle] = useState('')
   const [sessionToRename, setSessionToRename] = useState(null)
   const messagesViewportRef = useRef(null)
   const messagesListRef = useRef(null)
+  const searchInputRef = useRef(null)
   const initialScrollPendingRef = useRef(true)
   const activeSessionIdRef = useRef(null)
   const lastRenderedMessageCountRef = useRef(0)
@@ -152,7 +156,7 @@ const ChatPage = () => {
       recognitionInstance.onerror = (event) => {
         console.error('Speech recognition error', event.error)
         setIsListening(false)
-        message.error(`语音识别错误: ${event.error}`)
+        message.error(t('chat.voiceRecognitionError', { error: event.error }))
       }
       
       recognitionInstance.onend = () => {
@@ -175,7 +179,7 @@ const ChatPage = () => {
   // Toggle voice recognition
   const toggleVoiceRecognition = async () => {
     if (!recognition) {
-      message.error('您的浏览器不支持语音识别')
+      message.error(t('chat.voiceNotSupported'))
       return
     }
     
@@ -186,10 +190,10 @@ const ChatPage = () => {
       try {
         recognition.start()
         setIsListening(true)
-        message.info('开始语音识别，请说话...')
+        message.info(t('chat.voiceListening'))
       } catch (error) {
         console.error('Error starting speech recognition:', error)
-        message.error('启动语音识别失败')
+        message.error(t('chat.voiceStartFailed'))
       }
     }
   }
@@ -197,7 +201,7 @@ const ChatPage = () => {
   // Alternative: Record audio and send to backend for transcription
   const toggleAudioRecording = async () => {
     if (!navigator.mediaDevices || !window.MediaRecorder) {
-      message.error('您的浏览器不支持录音功能')
+      message.error(t('chat.recordingNotSupported'))
       return
     }
     
@@ -226,19 +230,19 @@ const ChatPage = () => {
           
           try {
             // Send audio to backend for transcription
-            message.info('音频录制完成，正在转录...')
+            message.info(t('chat.audioTranscribing'))
             const transcriptionResult = await api.transcribeVoice(audioBlob)
             const transcriptionText = transcriptionResult.text || ''
             
             if (transcriptionText) {
               setInputMessage(prev => prev + transcriptionText)
-              message.success('语音转文字成功')
+              message.success(t('chat.transcriptionSuccess'))
             } else {
-              message.warning('未能转录出文字内容')
+              message.warning(t('chat.transcriptionEmpty'))
             }
           } catch (error) {
             console.error('Transcription error:', error)
-            message.error(`语音转文字失败: ${error.message}`)
+            message.error(t('chat.transcriptionFailed', { error: error.message }))
           }
           
           // Clean up the stream
@@ -247,10 +251,10 @@ const ChatPage = () => {
         
         recorder.start()
         setIsListening(true)
-        message.info('开始录音，请说话...')
+        message.info(t('chat.recordingStarted'))
       } catch (error) {
         console.error('Error accessing microphone:', error)
-        message.error('无法访问麦克风，请检查权限')
+        message.error(t('chat.microphoneAccessDenied'))
       }
     }
   }
@@ -259,6 +263,37 @@ const ChatPage = () => {
   useEffect(() => {
     loadSessions()
   }, [])
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ctrl/Cmd+N: new session
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault()
+        handleCreateSession()
+        return
+      }
+      // Ctrl/Cmd+K: focus session search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault()
+        searchInputRef.current?.focus()
+        return
+      }
+      // Escape: close modals or clear search
+      if (e.key === 'Escape') {
+        if (showRenameModal) {
+          setShowRenameModal(false)
+          return
+        }
+        if (sessionFilter) {
+          setSessionFilter('')
+          return
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showRenameModal, sessionFilter])
 
   // Load messages when current session changes
   useEffect(() => {
@@ -452,6 +487,13 @@ const ChatPage = () => {
     syncViewportState()
   }, [messages.length, messagesLoading, sending, heightVersion, virtualRange.end, virtualRange.start])
 
+  // Auto-scroll when stream content changes during token-by-token streaming
+  useEffect(() => {
+    if (streamContent && shouldAutoScrollRef.current) {
+      scrollToBottom('auto')
+    }
+  }, [streamContent])
+
   useEffect(() => {
     const viewport = messagesViewportRef.current
     if (!viewport) {
@@ -599,6 +641,46 @@ const ChatPage = () => {
     }
   }
 
+  // Export chat as Markdown
+  const handleExportMarkdown = () => {
+    if (!currentSession || messages.length === 0) return
+    const lines = [`# ${currentSession.title}\n`]
+    messages.forEach((msg) => {
+      const speaker = msg.role === 'user' ? t('chat.you') : t('chat.assistantName')
+      const time = msg.createdAt ? ` (${new Date(msg.createdAt).toLocaleString()})` : ''
+      lines.push(`## ${speaker}${time}\n`)
+      lines.push(`${msg.content || ''}\n`)
+    })
+    const blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${currentSession.title || 'chat'}.md`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // Export chat as JSON
+  const handleExportJSON = () => {
+    if (!currentSession || messages.length === 0) return
+    const data = {
+      session: { id: currentSession.id, title: currentSession.title },
+      exportedAt: new Date().toISOString(),
+      messages: messages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+        createdAt: msg.createdAt,
+      })),
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${currentSession.title || 'chat'}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const antTheme = useMemo(() => ({
     algorithm: isDark ? antdTheme.darkAlgorithm : antdTheme.defaultAlgorithm,
     token: {
@@ -713,23 +795,37 @@ const ChatPage = () => {
               </div>
             </div>
             <div className="message-content">
-              <div className="loading-text">
-                <div className="loading-status">
-                  <Spin size="small" />
-                  <span>{t('chat.thinking')}</span>
-                </div>
-                {progress && (
-                  <div className="loading-progress">
-                    {progress}
+              {streamContent ? (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeHighlight]}
+                  className="markdown-body"
+                  components={markdownComponents}
+                >
+                  {streamContent}
+                </ReactMarkdown>
+              ) : (
+                <div className="loading-text">
+                  <div className="loading-status">
+                    <Spin size="small" />
+                    <span>{t('chat.thinking')}</span>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
+              {progress && !streamContent && (
+                <div className="loading-progress">
+                  {progress}
+                </div>
+              )}
+              {streamContent && streaming && (
+                <span className="streaming-cursor" />
+              )}
             </div>
           </div>
         </div>
       )}
     </div>
-  ), [bottomSpacerHeight, progress, sending, t, topSpacerHeight, visibleMessages])
+  ), [bottomSpacerHeight, progress, sending, streamContent, streaming, t, topSpacerHeight, visibleMessages])
 
   return (
     <ConfigProvider theme={antTheme}>
@@ -746,6 +842,17 @@ const ChatPage = () => {
               {t('chat.newSession')}
             </Button>
           </div>
+          <div className="sider-search">
+            <Input
+              ref={searchInputRef}
+              prefix={<SearchOutlined />}
+              placeholder={t('chat.searchSessions')}
+              value={sessionFilter}
+              onChange={(e) => setSessionFilter(e.target.value)}
+              allowClear
+              size="small"
+            />
+          </div>
           <div className="sessions-list">
             {sessionsLoading ? (
               <div className="loading-sessions">
@@ -757,7 +864,9 @@ const ChatPage = () => {
               </div>
             ) : sessions.items && sessions.items.length > 0 ? (
               <>
-                {sessions.items.map((session) => (
+                {sessions.items
+                  .filter((s) => !sessionFilter || s.title?.toLowerCase().includes(sessionFilter.toLowerCase()))
+                  .map((session) => (
                   <div
                     key={session.id}
                     className={`session-item ${currentSession?.id === session.id ? 'active' : ''}`}
@@ -810,6 +919,28 @@ const ChatPage = () => {
                 {currentSession?.title || t('chat.selectOrCreate')}
               </Text>
             </Space>
+            {currentSession && messages.length > 0 && (
+              <Space className="chat-header-actions">
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<DownloadOutlined />}
+                  onClick={handleExportMarkdown}
+                  title={t('chat.exportMarkdown')}
+                >
+                  Markdown
+                </Button>
+                <Button
+                  type="text"
+                  size="small"
+                  icon={<DownloadOutlined />}
+                  onClick={handleExportJSON}
+                  title={t('chat.exportJSON')}
+                >
+                  JSON
+                </Button>
+              </Space>
+            )}
           </Header>
 
           <Content
