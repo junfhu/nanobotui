@@ -35,10 +35,10 @@ if str(NANOBOT_PATH) not in sys.path:
 from nanobot.bus.queue import MessageBus
 from nanobot.agent.loop import AgentLoop
 from nanobot.session.manager import SessionManager
-from nanobot.config.loader import load_config, get_data_dir
-from nanobot.providers.litellm_provider import LiteLLMProvider
-from nanobot.providers.openai_codex_provider import OpenAICodexProvider
-from nanobot.providers.custom_provider import CustomProvider
+from nanobot.config.loader import load_config
+from nanobot.config.paths import get_data_dir
+from nanobot.providers.base import GenerationSettings
+from nanobot.providers.registry import find_by_name as find_provider_by_name
 from nanobot.providers.transcription import GroqTranscriptionProvider
 from nanobot.cron.service import CronService
 from nanobot.cron.types import CronJob, CronSchedule
@@ -122,6 +122,55 @@ def _stop_gateway_if_started() -> None:
         gateway_process = None
 
 
+def _make_provider(config):
+    """Create the appropriate LLM provider from config.
+
+    Routing is driven by ``ProviderSpec.backend`` in the registry.
+    """
+    model = config.agents.defaults.model
+    provider_name = config.get_provider_name(model)
+    p = config.get_provider(model)
+    spec = find_provider_by_name(provider_name) if provider_name else None
+    backend = spec.backend if spec else "openai_compat"
+
+    # --- instantiation by backend ---
+    if backend == "openai_codex":
+        from nanobot.providers.openai_codex_provider import OpenAICodexProvider
+        provider = OpenAICodexProvider(default_model=model)
+    elif backend == "azure_openai":
+        from nanobot.providers.azure_openai_provider import AzureOpenAIProvider
+        provider = AzureOpenAIProvider(
+            api_key=p.api_key,
+            api_base=p.api_base,
+            default_model=model,
+        )
+    elif backend == "anthropic":
+        from nanobot.providers.anthropic_provider import AnthropicProvider
+        provider = AnthropicProvider(
+            api_key=p.api_key if p else None,
+            api_base=config.get_api_base(model),
+            default_model=model,
+            extra_headers=p.extra_headers if p else None,
+        )
+    else:
+        from nanobot.providers.openai_compat_provider import OpenAICompatProvider
+        provider = OpenAICompatProvider(
+            api_key=p.api_key if p else None,
+            api_base=config.get_api_base(model),
+            default_model=model,
+            extra_headers=p.extra_headers if p else None,
+            spec=spec,
+        )
+
+    defaults = config.agents.defaults
+    provider.generation = GenerationSettings(
+        temperature=defaults.temperature,
+        max_tokens=defaults.max_tokens,
+        reasoning_effort=defaults.reasoning_effort,
+    )
+    return provider
+
+
 async def init_nanobot():
     """Initialize nanobot components."""
     global NANOBOT_AVAILABLE, agent_loop, message_bus, cron_service
@@ -160,12 +209,13 @@ async def init_nanobot():
             response = ""
             if agent_loop is not None:
                 try:
-                    response = await agent_loop.process_direct(
+                    result = await agent_loop.process_direct(
                         content=job.payload.message,
                         session_key=f"cron:{job.id}",
                         channel=job.payload.channel or "web",
                         chat_id=job.payload.to or "web:default",
-                    ) or ""
+                    )
+                    response = result.content if result and hasattr(result, 'content') else (str(result) if result else "")
                 except Exception as e:
                     logger.warning("Cron agent execution failed for job {}: {}", job.id, e)
 
@@ -177,46 +227,10 @@ async def init_nanobot():
         cron_service.on_job = on_cron_job
         await cron_service.start()
 
-        # Get model from config
+        # Create provider using registry-based approach
         model = config.agents.defaults.model
-        
-        # Use nanobot's config methods to get provider info
-        provider_config = config.get_provider(model)
-        provider_name = config.get_provider_name(model)
-        api_key = config.get_api_key(model) or ""
-        api_base = config.get_api_base(model)
-        
-        # Fallback: find provider by checking which one has api_key or api_base set
-        if not api_key and not provider_name:
-            if hasattr(config, 'providers') and config.providers:
-                for prov_name in ['vllm', 'custom', 'openrouter', 'deepseek', 'anthropic', 'openai']:
-                    prov = getattr(config.providers, prov_name, None)
-                    if prov and (prov.api_key or prov.api_base):
-                        provider_name = prov_name
-                        api_key = prov.api_key or ""
-                        api_base = prov.api_base
-                        break
-        
-        # Fallback to environment variable if no API key
-        if not api_key:
-            api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-        
-        if provider_name == "openai_codex" or model.startswith("openai-codex/"):
-            provider = OpenAICodexProvider(default_model=model)
-        elif provider_name == "custom":
-            provider = CustomProvider(
-                api_key=api_key or "no-key",
-                api_base=api_base or "http://localhost:8000/v1",
-                default_model=model,
-            )
-        else:
-            provider = LiteLLMProvider(
-                api_key=api_key or None,
-                api_base=api_base,
-                default_model=model,
-                provider_name=provider_name
-            )
-        
+        provider = _make_provider(config)
+
         # Create agent loop
         logger.info(f"Initializing AgentLoop with max_iterations: {config.agents.defaults.max_tool_iterations}")
         agent_loop = AgentLoop(
@@ -224,11 +238,17 @@ async def init_nanobot():
             provider=provider,
             workspace=config.workspace_path,
             model=config.agents.defaults.model,
-            temperature=config.agents.defaults.temperature,
-            max_tokens=config.agents.defaults.max_tokens,
             max_iterations=config.agents.defaults.max_tool_iterations,
-            memory_window=config.agents.defaults.memory_window,
+            context_window_tokens=config.agents.defaults.context_window_tokens,
+            web_search_config=config.tools.web.search,
+            web_proxy=config.tools.web.proxy or None,
+            exec_config=config.tools.exec,
             cron_service=cron_service,
+            restrict_to_workspace=config.tools.restrict_to_workspace,
+            session_manager=session_manager,
+            mcp_servers=config.tools.mcp_servers,
+            channels_config=config.channels,
+            timezone=config.agents.defaults.timezone,
         )
         
         # process_direct() handles web requests directly, no bus dispatcher required
@@ -855,13 +875,20 @@ def _get_last_tools_used_count(session_id: str) -> int:
     return 0
 
 
-def _normalize_agent_response(text: str | None, session_id: str | None = None) -> str:
-    """Convert empty-final fallback into actionable UI text."""
-    content = (text or "").strip()
-    if content == EMPTY_FINAL_RESPONSE:
+def _normalize_agent_response(resp, session_id: str | None = None) -> str:
+    """Convert agent response (OutboundMessage or str) into UI text."""
+    if resp is None:
+        text = ""
+    elif hasattr(resp, 'content'):
+        # OutboundMessage object
+        text = (resp.content or "").strip()
+    else:
+        text = (str(resp) or "").strip()
+
+    if text == EMPTY_FINAL_RESPONSE:
         tool_count = _get_last_tools_used_count(session_id) if session_id else 0
         return f"__NB_I18N_EMPTY_FINAL__:{tool_count}"
-    return text or ""
+    return text
 
 
 # Session endpoints

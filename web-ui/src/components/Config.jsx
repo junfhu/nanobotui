@@ -243,24 +243,45 @@ const Config = () => {
                   )}
                 </div>
               )}
-              {configData.agents.defaults.memory_window !== undefined && (
+              {configData.agents.defaults.context_window_tokens !== undefined && (
                 <div>
                   <div className="flex justify-between mb-1">
-                    <span className="text-gray-400">Memory Window:</span>
+                    <span className="text-gray-400">Context Window Tokens:</span>
                   </div>
                   {isEditing ? (
                     <input
                       type="number"
-                      value={editingData.agents.defaults.memory_window || 50}
+                      value={editingData.agents.defaults.context_window_tokens || 65536}
                       onChange={(e) => {
                         const newConfig = JSON.parse(JSON.stringify(editingData));
-                        newConfig.agents.defaults.memory_window = parseInt(e.target.value);
+                        newConfig.agents.defaults.context_window_tokens = parseInt(e.target.value);
                         setEditingConfig({ ...editingConfig, config: newConfig });
                       }}
                       className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
                   ) : (
-                    <span className="font-medium">{configData.agents.defaults.memory_window}</span>
+                    <span className="font-medium">{configData.agents.defaults.context_window_tokens}</span>
+                  )}
+                </div>
+              )}
+              {configData.agents.defaults.timezone !== undefined && (
+                <div>
+                  <div className="flex justify-between mb-1">
+                    <span className="text-gray-400">Timezone:</span>
+                  </div>
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editingData.agents.defaults.timezone || 'UTC'}
+                      onChange={(e) => {
+                        const newConfig = JSON.parse(JSON.stringify(editingData));
+                        newConfig.agents.defaults.timezone = e.target.value;
+                        setEditingConfig({ ...editingConfig, config: newConfig });
+                      }}
+                      className="w-full px-3 py-2 rounded bg-gray-700 border border-gray-600 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                  ) : (
+                    <span className="font-medium">{configData.agents.defaults.timezone}</span>
                   )}
                 </div>
               )}

@@ -180,7 +180,7 @@ const ConfigPage = () => {
             step="0.1"
             min="0"
             max="2"
-            value={agents.temperature || 0.7}
+            value={agents.temperature ?? 0.1}
             onChange={(e) => handleChange('agents', 'defaults', { ...agents, temperature: parseFloat(e.target.value) })}
             className="form-input"
           />
@@ -189,20 +189,57 @@ const ConfigPage = () => {
           <label>{t('configPage.maxToolIterations')}</label>
           <input
             type="number"
-            value={agents.maxToolIterations ?? agents.max_tool_iterations ?? 20}
+            value={agents.maxToolIterations ?? agents.max_tool_iterations ?? 40}
             onChange={(e) => handleChange('agents', 'defaults', { ...agents, maxToolIterations: parseInt(e.target.value) })}
             className="form-input"
           />
           <div className="form-help-text">{t('configPage.maxToolIterationsHint')}</div>
         </div>
         <div className="form-group">
-          <label>{t('configPage.memoryWindow')}</label>
+          <label>{t('configPage.contextWindowTokens')}</label>
           <input
             type="number"
-            value={agents.memoryWindow ?? agents.memory_window ?? 50}
-            onChange={(e) => handleChange('agents', 'defaults', { ...agents, memoryWindow: parseInt(e.target.value) })}
+            value={agents.contextWindowTokens ?? agents.context_window_tokens ?? 65536}
+            onChange={(e) => handleChange('agents', 'defaults', { ...agents, contextWindowTokens: parseInt(e.target.value) })}
             className="form-input"
           />
+          <div className="form-help-text">{t('configPage.contextWindowTokensHint')}</div>
+        </div>
+        <div className="form-group">
+          <label>{t('configPage.provider')}</label>
+          <input
+            type="text"
+            value={agents.provider ?? 'auto'}
+            onChange={(e) => handleChange('agents', 'defaults', { ...agents, provider: e.target.value })}
+            className="form-input"
+            placeholder="auto"
+          />
+          <div className="form-help-text">{t('configPage.providerHint')}</div>
+        </div>
+        <div className="form-group">
+          <label>{t('configPage.reasoningEffort')}</label>
+          <select
+            value={agents.reasoningEffort ?? agents.reasoning_effort ?? ''}
+            onChange={(e) => handleChange('agents', 'defaults', { ...agents, reasoningEffort: e.target.value || null })}
+            className="form-input"
+          >
+            <option value="">{t('configPage.reasoningEffortNone')}</option>
+            <option value="low">low</option>
+            <option value="medium">medium</option>
+            <option value="high">high</option>
+          </select>
+          <div className="form-help-text">{t('configPage.reasoningEffortHint')}</div>
+        </div>
+        <div className="form-group">
+          <label>{t('configPage.timezone')}</label>
+          <input
+            type="text"
+            value={agents.timezone ?? 'UTC'}
+            onChange={(e) => handleChange('agents', 'defaults', { ...agents, timezone: e.target.value })}
+            className="form-input"
+            placeholder="UTC"
+          />
+          <div className="form-help-text">{t('configPage.timezoneHint')}</div>
         </div>
       </div>
     )
